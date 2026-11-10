@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добро пожаловать — Авторизация</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .tabs {
+            display: flex;
+            background: #f3f4f6;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: #6b7280;
+            transition: all 0.2s ease;
+            border: none;
+            background: transparent;
+        }
+
+        .tab.active {
+            background: #ffffff;
+            color: #111827;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        h2 {
+            color: #111827;
+            font-size: 24px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            color: #111827;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            margin-top: 6px;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.92;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: break-all;
+            display: none;
+        }
+
+        #output.success {
+            display: block;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        #output.error {
+            display: block;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="tabs">
+            <button type="button" class="tab active" id="tab-login" onclick="switchMode('login')">Вход</button>
+            <button type="button" class="tab" id="tab-register" onclick="switchMode('register')">Регистрация</button>
+        </div>
+
+        <h2 id="form-title">С возвращением</h2>
+        <p class="subtitle" id="form-subtitle">Введите данные для входа в аккаунт</p>
+
+        <form id="auth-form" onsubmit="handleAuth(event)">
+            <div class="form-group">
+                <label for="username">Имя пользователя</label>
+                <input type="text" id="username" placeholder="Например, alex_dev" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submit-btn">Войти</button>
+        </form>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Полный адрес вашего FastAPI-сервера с портом и префиксом /api
+        const API_URL = "http://127.0.0.1:8000/api";
+        let currentMode = "login";
+
+        function switchMode(mode) {
+            currentMode = mode;
+            const output = document.getElementById("output");
+            output.style.display = "none";
+
+            document.getElementById("tab-login").classList.toggle("active", mode === "login");
+            document.getElementById("tab-register").classList.toggle("active", mode === "register");
+
+            if (mode === "login") {
+                document.getElementById("form-title").textContent = "С возвращением";
+                document.getElementById("form-subtitle").textContent = "Введите данные для входа в аккаунт";
+                document.getElementById("submit-btn").textContent = "Войти";
+            } else {
+                document.getElementById("form-title").textContent = "Создать аккаунт";
+                document.getElementById("form-subtitle").textContent = "Заполните поля для быстрой регистрации";
+                document.getElementById("submit-btn").textContent = "Зарегистрироваться";
+            }
+        }
+
+        function showMessage(text, isError = false) {
+            const output = document.getElementById("output");
+            output.textContent = text;
+            output.className = isError ? "error" : "success";
+            output.style.display = "block";
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value;
+
+            try {
+                const response = await fetch(`${API_URL}/${currentMode}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showMessage(data.detail || "Произошла ошибка", true);
+                    return;
+                }
+
+                if (data.token) {
+                    localStorage.setItem("auth_token", data.token);
+                    showMessage(`Успешный вход! Ваш токен: ${data.token}`);
+                } else {
+                    showMessage(data.message || "Пользователь успешно зарегистрирован!");
+                }
+            } catch (err) {
+                showMessage("Не удалось связаться с сервером. Убедитесь, что Uvicorn запущен на порту 8000.", true);
+            }
+        }
+    </script>
+</body>
+</html>

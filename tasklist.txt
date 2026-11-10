@@ -1,0 +1,10 @@
+basic needs:
+    - registr system 
+    - admin - dec - teach - schol system of hierarchy
+    - schedule time
+    - fast track to message decan
+    - exam form
+    cool ui :3
+
+be great to have:
+    - news
