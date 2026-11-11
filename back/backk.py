@@ -44,11 +44,12 @@ class RegisterSchema(BaseModel):
     email: str
     password: str
 
-
 class LoginSchema(BaseModel):
     email: str
     password: str
 
+class AvatarUpdateSchema(BaseModel):
+    avatar_url: str
 
 class RoleUpdateSchema(BaseModel):
     user_id: int
@@ -60,7 +61,7 @@ class NewsCreateSchema(BaseModel):
     title: str
     content: str
     tag: str = "Общее"
-
+    image_url: Optional[str] = None
 
 class QuestionSchema(BaseModel):
     text: str
@@ -76,7 +77,6 @@ class TestCreateSchema(BaseModel):
 
 class TestSubmitSchema(BaseModel):
     answers: List[int]
-
 
 class TicketCreateSchema(BaseModel):
     recipient_type: str
@@ -172,6 +172,10 @@ async def create_tables(cur) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;")
+    await cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS image_url TEXT;")
+    await cur.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS created_by_staff BOOLEAN DEFAULT FALSE;")
+
 
 
 async def seed_demo_data(cur) -> None:
@@ -248,7 +252,7 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("""
-                SELECT u.id, u.full_name, u.email, u.role, u.group_id, g.name as group_name
+                SELECT u.id, u.full_name, u.email, u.role, u.group_id, u.avatar_url, g.name as group_name
                 FROM users u
                 LEFT JOIN groups g ON u.group_id = g.id
                 WHERE u.api_token = %s
@@ -300,7 +304,7 @@ async def login(data: LoginSchema):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("""
-                SELECT u.id, u.full_name, u.email, u.password_hash, u.role, u.group_id, u.api_token, g.name as group_name
+                SELECT u.id, u.full_name, u.email, u.password_hash, u.role, u.group_id, u.avatar_url, u.api_token, g.name as group_name
                 FROM users u
                 LEFT JOIN groups g ON u.group_id = g.id
                 WHERE u.email = %s
@@ -330,7 +334,7 @@ async def list_users(current_user: dict = Depends(get_current_user)):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("""
-                SELECT u.id, u.full_name, u.email, u.role, u.group_id, g.name as group_name
+                SELECT u.id, u.full_name, u.email, u.role, u.group_id, u.avatar_url, g.name as group_name
                 FROM users u
                 LEFT JOIN groups g ON u.group_id = g.id
                 ORDER BY u.id DESC
@@ -368,7 +372,7 @@ async def assign_role(data: RoleUpdateSchema, current_user: dict = Depends(get_c
 async def list_teachers(current_user: dict = Depends(get_current_user)):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute("SELECT id, full_name, email FROM users WHERE role = 'teacher' ORDER BY full_name")
+            await cur.execute("SELECT id, full_name, email, avatar_url FROM users WHERE role = 'teacher' ORDER BY full_name")
             teachers = await cur.fetchall()
 
             await cur.execute("SELECT * FROM groups ORDER BY name")
@@ -376,6 +380,21 @@ async def list_teachers(current_user: dict = Depends(get_current_user)):
 
     return {"teachers": teachers, "groups": groups}
 
+@app.post("/api/users/avatar")
+async def update_avatar(data: AvatarUpdateSchema, current_user: dict = Depends(get_current_user)):
+    """Сохранение сжатого аватара (Base64 или локальный путь) текущего пользователя."""
+    if len(data.avatar_url) > 500_000:
+        raise HTTPException(status_code=400, detail="Файл изображения слишком большой")
+
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE users SET avatar_url = %s WHERE id = %s",
+                (data.avatar_url, current_user["id"])
+            )
+        await conn.commit()
+
+    return {"status": "success", "avatar_url": data.avatar_url}
 
 # ==============================================================================
 # 7. НОВОСТИ И РАСПИСАНИЕ ЗАНЯТИЙ
@@ -386,7 +405,7 @@ async def get_news(current_user: dict = Depends(get_current_user)):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("""
-                SELECT id, title, content, tag, author_name,
+                SELECT id, title, content, tag, author_name, image_url,
                        to_char(created_at, 'DD.MM.YYYY HH24:MI') as date
                 FROM news
                 ORDER BY id DESC
@@ -401,8 +420,8 @@ async def create_news(data: NewsCreateSchema, current_user: dict = Depends(get_c
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO news (title, content, tag, author_name) VALUES (%s, %s, %s, %s)",
-                (data.title, data.content, data.tag, current_user["full_name"])
+                "INSERT INTO news (title, content, tag, author_name, image_url) VALUES (%s, %s, %s, %s, %s)",
+                (data.title, data.content, data.tag, current_user["full_name"], data.image_url)
             )
         await conn.commit()
 
@@ -508,13 +527,12 @@ async def submit_test(test_id: int, data: TestSubmitSchema, current_user: dict =
 # ==============================================================================
 # 9. ОБРАЩЕНИЯ И ОБРАТНАЯ СВЯЗЬ (ВОПРОС-ОТВЕТ)
 # ==============================================================================
-
 @app.get("/api/tickets")
 async def get_tickets(current_user: dict = Depends(get_current_user)):
     base_query = """
         SELECT tk.id, tk.subject, tk.question, tk.answer, tk.status, tk.recipient_type,
-               to_char(tk.created_at, 'DD.MM HH24:MI') as date,
-               s.full_name as student_name, g.name as group_name,
+               tk.created_by_staff, to_char(tk.created_at, 'DD.MM HH24:MI') as date,
+               s.full_name as student_name, s.role as sender_role, g.name as group_name,
                r.full_name as recipient_name
         FROM tickets tk
         JOIN users s ON tk.student_id = s.id
@@ -525,21 +543,32 @@ async def get_tickets(current_user: dict = Depends(get_current_user)):
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             if current_user["role"] == "student":
-                await cur.execute(base_query + " WHERE tk.student_id = %s ORDER BY tk.id DESC", (current_user["id"],))
+                # Студент видит свои вопросы и входящие сообщения от деканата
+                await cur.execute(
+                    base_query + " WHERE tk.student_id = %s OR tk.recipient_id = %s ORDER BY tk.id DESC",
+                    (current_user["id"], current_user["id"])
+                )
             elif current_user["role"] == "teacher":
-                await cur.execute(base_query + " WHERE tk.recipient_id = %s ORDER BY tk.id DESC", (current_user["id"],))
+                # Учитель видит вопросы к нему и исходящие сообщения
+                await cur.execute(
+                    base_query + " WHERE tk.recipient_id = %s OR tk.student_id = %s ORDER BY tk.id DESC",
+                    (current_user["id"], current_user["id"])
+                )
             else:
                 await cur.execute(base_query + " ORDER BY tk.id DESC")
             return await cur.fetchall()
 
+
 @app.post("/api/tickets")
 async def create_ticket(data: TicketCreateSchema, current_user: dict = Depends(get_current_user)):
+    is_staff = current_user["role"] in ["deanery", "admin"]
+
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute("""
-                INSERT INTO tickets (student_id, recipient_type, recipient_id, subject, question)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (current_user["id"], data.recipient_type, data.recipient_id, data.subject, data.question))
+                INSERT INTO tickets (student_id, recipient_type, recipient_id, subject, question, created_by_staff)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (current_user["id"], data.recipient_type, data.recipient_id, data.subject, data.question, is_staff))
         await conn.commit()
 
     return {"status": "success"}
@@ -547,7 +576,7 @@ async def create_ticket(data: TicketCreateSchema, current_user: dict = Depends(g
 
 @app.post("/api/tickets/{ticket_id}/answer")
 async def answer_ticket(ticket_id: int, data: TicketAnswerSchema, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] == "student":
+    if current_user["role"] == "student": # убрать ифку если нужно что бы студент отвечал на тикет дека
         raise HTTPException(status_code=403, detail="Студент не может закрывать обращения")
 
     async with pool.connection() as conn:
