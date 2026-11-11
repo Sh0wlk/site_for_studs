@@ -8,7 +8,6 @@
     <style>
         .hidden { display: none !important; }
     </style>
-
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -43,14 +42,10 @@
             </form>
 
             <div id="auth-error" class="hidden mt-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200"></div>
-            
-            <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 text-center">
-                Демо-доступ Админа: <span class="font-mono text-slate-600">admin@uni.ru</span> / <span class="font-mono text-slate-600">admin123</span>
-            </div>
         </div>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО 2FA (для Учителя, Деканата и Админа) -->
+    <!-- МОДАЛЬНОЕ ОКНО 2FA -->
     <div id="modal-2fa" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center">
             <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">🔐</div>
@@ -67,23 +62,19 @@
             <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⏳</div>
             <h2 class="text-2xl font-bold text-slate-900">Ожидает подтверждения</h2>
             <p class="text-slate-500 text-sm mt-2">Ваша заявка передана в деканат. Сообщите свой ID сотруднику для активации учетной записи.</p>
-            
             <div class="my-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div class="text-xs uppercase text-slate-400 font-semibold">Ваш уникальный ID</div>
                 <div id="guest-id" class="text-3xl font-mono font-bold text-indigo-600 mt-1">#0</div>
                 <div id="guest-name" class="text-sm font-medium text-slate-700 mt-2"></div>
             </div>
-
             <div class="flex gap-3">
                 <button onclick="checkStatus()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Обновить статус</button>
                 <button onclick="logout()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition">Выйти</button>
             </div>
         </div>
     </div>
-
-    <!-- 3. ОСНОВНОЙ ПОРТАЛ (Для подтвержденных ролей) -->
+    <!-- 3. ОСНОВНОЙ ПОРТАЛ -->
     <div id="app-screen" class="hidden min-h-screen flex flex-col">
-        <!-- Верхняя панель -->
         <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
             <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -100,7 +91,6 @@
             </div>
         </header>
 
-        <!-- Навигация -->
         <nav class="bg-white border-b border-slate-200 overflow-x-auto">
             <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-semibold">
                 <button onclick="openSection('dashboard')" class="nav-btn py-3.5 border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap" data-sec="dashboard">Главная и Новости</button>
@@ -111,9 +101,110 @@
             </div>
         </nav>
 
-        <!-- Контент вкладок -->
         <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1">
-            <!-- Вкладка Деканат / Управление ролями -->
+
+            <!-- ВКЛАДКА 1: ГЛАВНАЯ, НОВОСТИ И ПРЕПОДАВАТЕЛИ -->
+            <section id="sec-dashboard" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 space-y-4">
+                    <div id="news-create-box" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-900 mb-3">Опубликовать новость</h3>
+                        <form onsubmit="publishNews(event)" class="space-y-3">
+                            <div class="flex gap-3">
+                                <input type="text" id="news-title" required placeholder="Заголовок объявления" class="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                                <select id="news-tag" class="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white">
+                                    <option value="Общее">Общее</option>
+                                    <option value="Учеба">Учеба</option>
+                                    <option value="Мероприятия">Мероприятия</option>
+                                </select>
+                            </div>
+                            <textarea id="news-content" required rows="2" placeholder="Текст новости..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></textarea>
+                            <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Опубликовать</button>
+                        </form>
+                    </div>
+
+                    <h2 class="text-lg font-bold text-slate-900">Лента новостей университета</h2>
+                    <div id="news-list" class="space-y-4"></div>
+                </div>
+
+                <div class="space-y-4">
+                    <h2 class="text-lg font-bold text-slate-900">Преподаватели</h2>
+                    <div id="teachers-list" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- ВКЛАДКА 2: РАСПИСАНИЕ -->
+            <section id="sec-schedule" class="hidden space-y-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Расписание занятий</h2>
+                        <p class="text-xs text-slate-500">Выберите учебную группу для просмотра сетки пар</p>
+                    </div>
+                    <select id="schedule-group-select" onchange="loadSchedule(this.value)" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold bg-white"></select>
+                </div>
+                <div id="schedule-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+
+            <!-- ВКЛАДКА 3: ТЕСТИРОВАНИЕ -->
+            <section id="sec-tests" class="hidden space-y-6">
+                <div id="test-creator-box" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-900 mb-3">Создать новый тест для группы</h3>
+                    <form onsubmit="createTest(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input type="text" id="test-title" required placeholder="Название теста (напр. Основы SQL)" class="px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                            <select id="test-group-select" required class="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white"></select>
+                        </div>
+                        <div id="test-questions-container" class="space-y-4"></div>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="addQuestionBlock()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold rounded-xl">+ Добавить вопрос</button>
+                            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Сохранить и назначить тест</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="test-runner-box" class="hidden bg-white p-6 rounded-2xl shadow-md border-2 border-indigo-600 space-y-4">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 id="runner-title" class="text-lg font-bold text-slate-900"></h3>
+                        <button onclick="closeTestRunner()" class="text-sm text-slate-500 hover:text-slate-800">✕ Закрыть</button>
+                    </div>
+                    <form id="runner-form" onsubmit="submitTestAnswers(event)" class="space-y-4"></form>
+                </div>
+
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 mb-3">Доступные тесты</h2>
+                    <div id="tests-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </section>
+
+            <!-- ВКЛАДКА 4: ОБРАЩЕНИЯ (ВОПРОС-ОТВЕТ) -->
+            <section id="sec-tickets" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div id="ticket-create-box" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                    <h3 class="font-bold text-slate-900 mb-3">Задать вопрос</h3>
+                    <form onsubmit="createTicket(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Кому отправить</label>
+                            <select id="ticket-recipient" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white">
+                                <option value="deanery">В Деканат</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Тема обращения</label>
+                            <input type="text" id="ticket-subject" required placeholder="Например: Справка об обучении" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Ваш вопрос</label>
+                            <textarea id="ticket-question" required rows="3" placeholder="Опишите ваш вопрос..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Отправить обращение</button>
+                    </form>
+                </div>
+
+                <div class="lg:col-span-2 space-y-3">
+                    <h2 class="text-lg font-bold text-slate-900">История обращений</h2>
+                    <div id="tickets-list" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- ВКЛАДКА 5: ДЕКАНАТ И УПРАВЛЕНИЕ РОЛЯМИ -->
             <section id="sec-deanery" class="hidden space-y-4">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h2 class="text-lg font-bold text-slate-900 mb-1">Управление пользователями и заявками</h2>
@@ -136,34 +227,15 @@
                 </div>
             </section>
 
-                        <!-- Заглушки для следующих этапов -->
-            <section id="sec-dashboard" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold">Дашборд и Лента новостей</h2>
-                <p class="text-sm text-slate-500 mt-1">Готово к подключению модуля новостей и ближайших пар (Этап 2).</p>
-            </section>
-
-            <section id="sec-schedule" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold">Расписание занятий</h2>
-                <p class="text-sm text-slate-500 mt-1">Готово к подключению сетки расписания (Этап 2).</p>
-            </section>
-
-            <section id="sec-tests" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold">Модуль тестирования</h2>
-                <p class="text-sm text-slate-500 mt-1">Готово к подключению конструктора и прохождения тестов (Этап 3).</p>
-            </section>
-
-            <section id="sec-tickets" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold">Обращения и вопросы</h2>
-                <p class="text-sm text-slate-500 mt-1">Готово к подключению чата вопрос-ответ (Этап 4).</p>
-            </section>
         </main>
     </div>
-
     <script>
         const API_URL = "http://127.0.0";
         let authMode = "login";
         let pendingUser = null;
         let currentUser = null;
+        let allGroups = [];
+        let activeTest = null;
 
         const ROLE_NAMES = {
             guest: "Гость (Не подтвержден)",
@@ -173,6 +245,7 @@
             admin: "Администратор"
         };
 
+        // --- АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ ---
         function setAuthTab(mode) {
             authMode = mode;
             document.getElementById("auth-error").classList.add("hidden");
@@ -221,14 +294,12 @@
                 if (authMode === "register") {
                     localStorage.setItem("portal_token", data.token);
                     await checkStatus();
+                } else if (["teacher", "deanery", "admin"].includes(data.user.role)) {
+                    pendingUser = data.user;
+                    document.getElementById("modal-2fa").classList.remove("hidden");
                 } else {
-                    if (["teacher", "deanery", "admin"].includes(data.user.role)) {
-                        pendingUser = data.user;
-                        document.getElementById("modal-2fa").classList.remove("hidden");
-                    } else {
-                        localStorage.setItem("portal_token", data.user.api_token);
-                        renderUserState(data.user);
-                    }
+                    localStorage.setItem("portal_token", data.user.api_token);
+                    renderUserState(data.user);
                 }
             } catch (err) {
                 errBox.textContent = "Сервер недоступен. Проверьте запуск FastAPI.";
@@ -255,8 +326,7 @@
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
-                const user = await res.json();
-                renderUserState(user);
+                renderUserState(await res.json());
             } else {
                 logout();
             }
@@ -276,14 +346,22 @@
 
             document.getElementById("guest-screen").classList.add("hidden");
             document.getElementById("app-screen").classList.remove("hidden");
-
             document.getElementById("header-name").textContent = user.full_name;
             const groupLabel = user.group_name ? ` • Группа ${user.group_name}` : "";
             document.getElementById("header-role").textContent = `${ROLE_NAMES[user.role]}${groupLabel}`;
 
             const isStaff = ["deanery", "admin"].includes(user.role);
+            const isTeacher = ["teacher", "admin"].includes(user.role);
+
             document.getElementById("nav-deanery").classList.toggle("hidden", !isStaff);
+            document.getElementById("news-create-box").classList.toggle("hidden", !isStaff);
+            document.getElementById("test-creator-box").classList.toggle("hidden", !isTeacher);
+            document.getElementById("ticket-create-box").classList.toggle("hidden", user.role !== "student");
+
             if (isStaff) loadUsersList();
+            else document.getElementById("users-table-body").innerHTML = "";
+
+            openSection("dashboard");
         }
 
         function openSection(secId) {
@@ -297,8 +375,312 @@
                 btn.classList.toggle("border-transparent", !active);
                 btn.classList.toggle("text-slate-500", !active);
             });
+
+            if (secId === "dashboard") { loadNews(); loadTeachers(); }
+            if (secId === "schedule") loadSchedule();
+            if (secId === "tests") { loadTeachers(); loadTests(); }
+            if (secId === "tickets") { loadTeachers(); loadTickets(); }
+            if (secId === "deanery") loadUsersList();
+        }
+        // --- НОВОСТИ И ПРЕПОДАВАТЕЛИ ---
+        async function loadNews() {
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/news`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const news = await res.json();
+
+            document.getElementById("news-list").innerHTML = news.map(n => `
+                <article class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">${n.tag}</span>
+                        <span class="text-xs text-slate-400">${n.date} • ${n.author_name || 'Портал'}</span>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-base">${n.title}</h3>
+                    <p class="text-sm text-slate-600 mt-1.5 whitespace-pre-line">${n.content}</p>
+                </article>
+            `).join('');
         }
 
+        async function publishNews(e) {
+            e.preventDefault();
+            const token = localStorage.getItem("portal_token");
+            const title = document.getElementById("news-title").value.trim();
+            const content = document.getElementById("news-content").value.trim();
+            const tag = document.getElementById("news-tag").value;
+
+            await fetch(`${API_URL}/news`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ title, content, tag })
+            });
+
+            document.getElementById("news-title").value = "";
+            document.getElementById("news-content").value = "";
+            loadNews();
+        }
+
+        async function loadTeachers() {
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/teachers`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const data = await res.json();
+            allGroups = data.groups;
+
+            document.getElementById("test-group-select").innerHTML = allGroups
+                .map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+
+            document.getElementById("ticket-recipient").innerHTML = `<option value="deanery">В Деканат</option>` +
+                data.teachers.map(t => `<option value="${t.id}">Преподаватель: ${t.full_name}</option>`).join('');
+
+            const container = document.getElementById("teachers-list");
+            if (!data.teachers.length) {
+                container.innerHTML = `<div class="bg-white p-4 rounded-2xl text-sm text-slate-400 border border-slate-200">Преподаватели пока не назначены</div>`;
+                return;
+            }
+
+            container.innerHTML = data.teachers.map(t => `
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
+                    <img src="https://ui-avatars.com{encodeURIComponent(t.full_name)}&background=e0e7ff&color=4338ca&bold=true" class="w-11 h-11 rounded-full">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm text-slate-900 truncate">${t.full_name}</div>
+                        <div class="text-xs text-slate-400 truncate">${t.email}</div>
+                    </div>
+                    ${currentUser.role === 'student' ? `<button onclick="askTeacher(${t.id})" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold">Вопрос</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function askTeacher(teacherId) {
+            openSection('tickets');
+            document.getElementById("ticket-recipient").value = teacherId;
+        }
+
+        // --- РАСПИСАНИЕ ---
+        async function loadSchedule(groupId = null) {
+            const token = localStorage.getItem("portal_token");
+            const url = groupId ? `${API_URL}/schedule?group_id=${groupId}` : `${API_URL}/schedule`;
+            const res = await fetch(url, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            const sel = document.getElementById("schedule-group-select");
+            sel.innerHTML = data.groups
+                .map(g => `<option value="${g.id}" ${g.id == data.selected_group ? 'selected' : ''}>Группа ${g.name}</option>`).join('');
+
+            const days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
+            document.getElementById("schedule-grid").innerHTML = days.map(day => {
+                const dayLessons = data.lessons.filter(l => l.day_of_week === day);
+                return `
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">${day}</h3>
+                        ${dayLessons.length ? dayLessons.map(l => `
+                            <div class="py-2.5 border-b last:border-0 border-slate-100 flex justify-between items-start gap-2">
+                                <div>
+                                    <div class="text-xs font-mono text-indigo-600 font-semibold">${l.time_slot} • ${l.lesson_type}</div>
+                                    <div class="font-semibold text-sm text-slate-900 mt-0.5">${l.subject}</div>
+                                    <div class="text-xs text-slate-500 mt-0.5">${l.teacher_name}</div>
+                                </div>
+                                <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-mono whitespace-nowrap">${l.room}</span>
+                            </div>
+                        `).join('') : '<div class="text-xs text-slate-400 py-4 text-center">Занятий нет</div>'}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- ТЕСТИРОВАНИЕ ---
+        let questionCounter = 0;
+        function addQuestionBlock() {
+            questionCounter++;
+            const id = questionCounter;
+            const div = document.createElement("div");
+            div.className = "p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 q-block";
+            div.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Вопрос #${id}</span>
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-xs text-red-500">Удалить</button>
+                </div>
+                <input type="text" required placeholder="Текст вопроса" class="q-text w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    ${[0, 1, 2, 3].map(i => `
+                        <div class="flex items-center gap-2">
+                            <input type="radio" name="correct-${id}" value="${i}" ${i === 0 ? 'checked' : ''}>
+                            <input type="text" required placeholder="Вариант ${i + 1}" class="q-opt w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById("test-questions-container").appendChild(div);
+        }
+        async function createTest(e) {
+            e.preventDefault();
+            const blocks = document.querySelectorAll(".q-block");
+            if (!blocks.length) return alert("Добавьте хотя бы один вопрос");
+
+            const questions = Array.from(blocks).map(b => {
+                const text = b.querySelector(".q-text").value.trim();
+                const options = Array.from(b.querySelectorAll(".q-opt")).map(o => o.value.trim());
+                const correct_index = parseInt(b.querySelector("input[type=radio]:checked").value);
+                return { text, options, correct_index };
+            });
+
+            const token = localStorage.getItem("portal_token");
+            await fetch(`${API_URL}/tests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({
+                    title: document.getElementById("test-title").value.trim(),
+                    group_id: parseInt(document.getElementById("test-group-select").value),
+                    questions
+                })
+            });
+
+            document.getElementById("test-title").value = "";
+            document.getElementById("test-questions-container").innerHTML = "";
+            loadTests();
+        }
+
+        async function loadTests() {
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/tests`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const tests = await res.json();
+            window._loadedTests = tests;
+
+            document.getElementById("tests-list").innerHTML = tests.length ? tests.map(t => `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
+                            <span>Группа: ${t.group_name}</span>
+                            <span>Вопросов: ${t.questions.length}</span>
+                        </div>
+                        <h3 class="font-bold text-slate-900">${t.title}</h3>
+                        <p class="text-xs text-slate-500 mt-1">Преподаватель: ${t.teacher_name}</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        ${currentUser.role === 'student'
+                            ? (t.score !== null
+                                ? `<span class="text-sm font-bold text-emerald-600">Результат: ${t.score} из ${t.max_score}</span>`
+                                : `<span class="text-xs text-amber-600 font-medium">Не пройден</span>`)
+                            : `<span class="text-xs text-slate-500">Сдали студентов: <b>${t.submissions}</b></span>`
+                        }
+                        ${currentUser.role === 'student'
+                            ? `<button onclick="startTest(${t.id})" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">${t.score !== null ? 'Пересдать' : 'Начать тест'}</button>`
+                            : ''
+                        }
+                    </div>
+                </div>
+            `).join('') : '<div class="text-sm text-slate-400">Назначенных тестов пока нет.</div>';
+        }
+
+        function startTest(testId) {
+            activeTest = window._loadedTests.find(t => t.id === testId);
+            document.getElementById("test-runner-box").classList.remove("hidden");
+            document.getElementById("runner-title").textContent = activeTest.title;
+            document.getElementById("runner-form").innerHTML = activeTest.questions.map((q, qIdx) => `
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="font-semibold text-sm text-slate-900 mb-2">${qIdx + 1}. ${q.text}</div>
+                    <div class="space-y-1.5">
+                        ${q.options.map((opt, oIdx) => `
+                            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                                <input type="radio" name="ans-${qIdx}" value="${oIdx}" required> ${opt}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('') + `<button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm">Завершить и узнать оценку</button>`;
+        }
+
+        function closeTestRunner() {
+            document.getElementById("test-runner-box").classList.add("hidden");
+            activeTest = null;
+        }
+
+        async function submitTestAnswers(e) {
+            e.preventDefault();
+            const answers = activeTest.questions.map((_, idx) => parseInt(document.querySelector(`input[name="ans-${idx}"]:checked`).value));
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/tests/${activeTest.id}/submit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ answers })
+            });
+            const result = await res.json();
+            alert(`Тест завершен! Ваш результат: ${result.score} из ${result.max_score}`);
+            closeTestRunner();
+            loadTests();
+        }
+
+        // --- ОБРАЩЕНИЯ (ВОПРОС-ОТВЕТ) ---
+        async function createTicket(e) {
+            e.preventDefault();
+            const recVal = document.getElementById("ticket-recipient").value;
+            const payload = {
+                recipient_type: recVal === "deanery" ? "deanery" : "teacher",
+                recipient_id: recVal === "deanery" ? null : parseInt(recVal),
+                subject: document.getElementById("ticket-subject").value.trim(),
+                question: document.getElementById("ticket-question").value.trim()
+            };
+            const token = localStorage.getItem("portal_token");
+            await fetch(`${API_URL}/tickets`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            document.getElementById("ticket-subject").value = "";
+            document.getElementById("ticket-question").value = "";
+            loadTickets();
+        }
+
+        async function loadTickets() {
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/tickets`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const tickets = await res.json();
+
+            document.getElementById("tickets-list").innerHTML = tickets.length ? tickets.map(tk => `
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-500">
+                            От: ${tk.student_name} (${tk.group_name || 'без группы'}) → Кому: ${tk.recipient_type === 'deanery' ? 'Деканат' : tk.recipient_name}
+                        </span>
+                        <span class="px-2 py-0.5 rounded-lg font-semibold ${tk.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">
+                            ${tk.status === 'answered' ? 'Отвечено' : 'Новый'}
+                        </span>
+                    </div>
+                    <h4 class="font-bold text-slate-900 text-sm">${tk.subject}</h4>
+                    <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl">${tk.question}</p>
+                    ${tk.answer
+                        ? `<div class="text-sm text-indigo-900 bg-indigo-50 p-3 rounded-xl border border-indigo-100"><b>Ответ:</b> ${tk.answer}</div>`
+                        : (currentUser.role !== 'student' ? `
+                            <div class="flex gap-2 pt-1">
+                                <input type="text" id="ans-input-${tk.id}" placeholder="Напишите ответ студенту..." class="flex-1 px-3 py-1.5 border border-slate-300 rounded-xl text-sm">
+                                <button onclick="sendTicketAnswer(${tk.id})" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">Ответить</button>
+                            </div>
+                        ` : '')
+                    }
+                </div>
+            `).join('') : '<div class="text-sm text-slate-400">Обращений пока нет.</div>';
+        }
+
+        async function sendTicketAnswer(ticketId) {
+            const answer = document.getElementById(`ans-input-${ticketId}`).value.trim();
+            if (!answer) return;
+            const token = localStorage.getItem("portal_token");
+            await fetch(`${API_URL}/tickets/${ticketId}/answer`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                body: JSON.stringify({ answer })
+            });
+            loadTickets();
+        }
+
+        // --- УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ (ДЕКАНАТ / АДМИН) ---
         async function loadUsersList() {
             const token = localStorage.getItem("portal_token");
             const res = await fetch(`${API_URL}/users`, {
@@ -308,31 +690,46 @@
             const data = await res.json();
 
             const tbody = document.getElementById("users-table-body");
-            tbody.innerHTML = data.users.map(u => `
-                <tr>
-                    <td class="py-3 px-2 font-mono text-slate-500">#${u.id}</td>
-                    <td class="py-3 px-2 font-medium">${u.full_name}</td>
-                    <td class="py-3 px-2 text-slate-500">${u.email}</td>
-                    <td class="py-3 px-2">
-                        <select id="role-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
-                            <option value="guest" ${u.role === 'guest' ? 'selected' : ''}>Гость</option>
-                            <option value="student" ${u.role === 'student' ? 'selected' : ''}>Ученик</option>
-                            <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>Учитель</option>
-                            ${currentUser.role === 'admin' ? `<option value="deanery" ${u.role === 'deanery' ? 'selected' : ''}>Деканат</option>` : ''}
-                            ${currentUser.role === 'admin' ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Админ</option>` : ''}
-                        </select>
-                    </td>
-                    <td class="py-3 px-2">
-                        <select id="group-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
-                            <option value="">Без группы</option>
-                            ${data.groups.map(g => `<option value="${g.id}" ${u.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
-                        </select>
-                    </td>
-                    <td class="py-3 px-2">
-                        <button onclick="saveUserRole(${u.id})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold">Сохранить</button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = data.users.map(u => {
+                const isProtected = (u.id === currentUser.id) || (currentUser.role === 'deanery' && ['admin', 'deanery'].includes(u.role));
+                if (isProtected) {
+                    return `
+                        <tr class="bg-slate-50/70">
+                            <td class="py-3 px-2 font-mono text-slate-400">#${u.id}</td>
+                            <td class="py-3 px-2 font-medium text-slate-700">${u.full_name}</td>
+                            <td class="py-3 px-2 text-slate-400">${u.email}</td>
+                            <td class="py-3 px-2"><span class="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">${ROLE_NAMES[u.role]}</span></td>
+                            <td class="py-3 px-2 text-slate-400 text-xs">${u.group_name || '—'}</td>
+                            <td class="py-3 px-2 text-xs text-slate-400 italic">Защищено</td>
+                        </tr>
+                    `;
+                }
+                return `
+                    <tr>
+                        <td class="py-3 px-2 font-mono text-slate-500">#${u.id}</td>
+                        <td class="py-3 px-2 font-medium">${u.full_name}</td>
+                        <td class="py-3 px-2 text-slate-500">${u.email}</td>
+                        <td class="py-3 px-2">
+                            <select id="role-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                                <option value="guest" ${u.role === 'guest' ? 'selected' : ''}>Гость</option>
+                                <option value="student" ${u.role === 'student' ? 'selected' : ''}>Ученик</option>
+                                <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>Учитель</option>
+                                ${currentUser.role === 'admin' ? `<option value="deanery" ${u.role === 'deanery' ? 'selected' : ''}>Деканат</option>` : ''}
+                                ${currentUser.role === 'admin' ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Админ</option>` : ''}
+                            </select>
+                        </td>
+                        <td class="py-3 px-2">
+                            <select id="group-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                                <option value="">Без группы</option>
+                                ${data.groups.map(g => `<option value="${g.id}" ${u.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="py-3 px-2">
+                            <button onclick="saveUserRole(${u.id})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold">Сохранить</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function saveUserRole(userId) {
@@ -340,16 +737,11 @@
             const role = document.getElementById(`role-${userId}`).value;
             const groupVal = document.getElementById(`group-${userId}`).value;
             const group_id = groupVal ? parseInt(groupVal) : null;
-
             const res = await fetch(`${API_URL}/users/role`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
                 body: JSON.stringify({ user_id: userId, role, group_id })
             });
-
             if (res.ok) {
                 alert("Роль и группа обновлены!");
                 loadUsersList();
