@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Университетский портал — MVP</title>
+    <script src="https://tailwindcss.com"></script>
+    <style>
+        .hidden { display: none !important; }
+    </style>
+
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <!-- 1. ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 text-white font-bold text-xl mb-3">УП</div>
+                <h1 class="text-2xl font-bold text-slate-900">Единый портал ВУЗа</h1>
+                <p class="text-sm text-slate-500 mt-1">Единый доступ к расписанию, тестам и деканату</p>
+            </div>
+
+            <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
+                <button onclick="setAuthTab('login')" id="tab-login" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition">Вход</button>
+                <button onclick="setAuthTab('register')" id="tab-register" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition">Регистрация</button>
+            </div>
+
+            <form id="auth-form" onsubmit="submitAuth(event)" class="space-y-4">
+                <div id="field-fullname" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ФИО полностью</label>
+                    <input type="text" id="input-fullname" placeholder="Иванов Иван Иванович" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email</label>
+                    <input type="email" id="input-email" required placeholder="student@uni.ru" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Пароль</label>
+                    <input type="password" id="input-password" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                </div>
+                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition shadow-md">Войти в систему</button>
+            </form>
+
+            <div id="auth-error" class="hidden mt-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200"></div>
+            
+            <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 text-center">
+                Демо-доступ Админа: <span class="font-mono text-slate-600">admin@uni.ru</span> / <span class="font-mono text-slate-600">admin123</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО 2FA (для Учителя, Деканата и Админа) -->
+    <div id="modal-2fa" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center">
+            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">🔐</div>
+            <h3 class="text-lg font-bold text-slate-900">Двухфакторная защита</h3>
+            <p class="text-sm text-slate-500 mt-1">Введите 6-значный код из приложения-аутентификатора (для демо подойдет любой, например <span class="font-mono font-bold">123456</span>)</p>
+            <input type="text" id="input-2fa" maxlength="6" placeholder="000000" class="mt-4 w-full text-center tracking-[0.5em] font-mono text-2xl py-3 border-2 border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none">
+            <button onclick="confirm2FA()" class="mt-4 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Подтвердить вход</button>
+        </div>
+    </div>
+
+    <!-- 2. ЭКРАН ОЖИДАНИЯ (Роль: Гость) -->
+    <div id="guest-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⏳</div>
+            <h2 class="text-2xl font-bold text-slate-900">Ожидает подтверждения</h2>
+            <p class="text-slate-500 text-sm mt-2">Ваша заявка передана в деканат. Сообщите свой ID сотруднику для активации учетной записи.</p>
+            
+            <div class="my-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div class="text-xs uppercase text-slate-400 font-semibold">Ваш уникальный ID</div>
+                <div id="guest-id" class="text-3xl font-mono font-bold text-indigo-600 mt-1">#0</div>
+                <div id="guest-name" class="text-sm font-medium text-slate-700 mt-2"></div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="checkStatus()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Обновить статус</button>
+                <button onclick="logout()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition">Выйти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. ОСНОВНОЙ ПОРТАЛ (Для подтвержденных ролей) -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        <!-- Верхняя панель -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+            <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-9 h-9 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center">УП</span>
+                    <span class="font-bold text-slate-900 hidden sm:inline">Портал Университета</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <div id="header-name" class="text-sm font-semibold text-slate-900"></div>
+                        <div id="header-role" class="text-xs text-indigo-600 font-medium"></div>
+                    </div>
+                    <button onclick="logout()" class="text-sm px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Навигация -->
+        <nav class="bg-white border-b border-slate-200 overflow-x-auto">
+            <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-semibold">
+                <button onclick="openSection('dashboard')" class="nav-btn py-3.5 border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap" data-sec="dashboard">Главная и Новости</button>
+                <button onclick="openSection('schedule')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="schedule">Расписание</button>
+                <button onclick="openSection('tests')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="tests">Тестирование</button>
+                <button onclick="openSection('tickets')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="tickets">Обращения</button>
+                <button id="nav-deanery" onclick="openSection('deanery')" class="hidden nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="deanery">Деканат / Роли</button>
+            </div>
+        </nav>
+
+        <!-- Контент вкладок -->
+        <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1">
+            <!-- Вкладка Деканат / Управление ролями -->
+            <section id="sec-deanery" class="hidden space-y-4">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold text-slate-900 mb-1">Управление пользователями и заявками</h2>
+                    <p class="text-sm text-slate-500 mb-4">Подтверждайте регистрацию гостей, назначайте роли и распределяйте студентов по группам.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500">
+                                    <th class="py-3 px-2">ID</th>
+                                    <th class="py-3 px-2">ФИО</th>
+                                    <th class="py-3 px-2">Email</th>
+                                    <th class="py-3 px-2">Роль</th>
+                                    <th class="py-3 px-2">Группа</th>
+                                    <th class="py-3 px-2">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+                        <!-- Заглушки для следующих этапов -->
+            <section id="sec-dashboard" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold">Дашборд и Лента новостей</h2>
+                <p class="text-sm text-slate-500 mt-1">Готово к подключению модуля новостей и ближайших пар (Этап 2).</p>
+            </section>
+
+            <section id="sec-schedule" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold">Расписание занятий</h2>
+                <p class="text-sm text-slate-500 mt-1">Готово к подключению сетки расписания (Этап 2).</p>
+            </section>
+
+            <section id="sec-tests" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold">Модуль тестирования</h2>
+                <p class="text-sm text-slate-500 mt-1">Готово к подключению конструктора и прохождения тестов (Этап 3).</p>
+            </section>
+
+            <section id="sec-tickets" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold">Обращения и вопросы</h2>
+                <p class="text-sm text-slate-500 mt-1">Готово к подключению чата вопрос-ответ (Этап 4).</p>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0";
+        let authMode = "login";
+        let pendingUser = null;
+        let currentUser = null;
+
+        const ROLE_NAMES = {
+            guest: "Гость (Не подтвержден)",
+            student: "Студент",
+            teacher: "Преподаватель",
+            deanery: "Деканат",
+            admin: "Администратор"
+        };
+
+        function setAuthTab(mode) {
+            authMode = mode;
+            document.getElementById("auth-error").classList.add("hidden");
+            document.getElementById("field-fullname").classList.toggle("hidden", mode === "login");
+            document.getElementById("input-fullname").required = (mode === "register");
+            document.getElementById("auth-submit-btn").textContent = mode === "login"
+                ? "Войти в систему"
+                : "Подать заявку на регистрацию";
+
+            document.getElementById("tab-login").className = mode === "login"
+                ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition"
+                : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition";
+
+            document.getElementById("tab-register").className = mode === "register"
+                ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition"
+                : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition";
+        }
+
+        async function submitAuth(e) {
+            e.preventDefault();
+            const errBox = document.getElementById("auth-error");
+            errBox.classList.add("hidden");
+
+            const email = document.getElementById("input-email").value.trim();
+            const password = document.getElementById("input-password").value;
+            const full_name = document.getElementById("input-fullname").value.trim();
+
+            const payload = authMode === "login"
+                ? { email, password }
+                : { full_name, email, password };
+
+            try {
+                const res = await fetch(`${API_URL}/${authMode}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errBox.textContent = data.detail || "Ошибка авторизации";
+                    errBox.classList.remove("hidden");
+                    return;
+                }
+
+                if (authMode === "register") {
+                    localStorage.setItem("portal_token", data.token);
+                    await checkStatus();
+                } else {
+                    if (["teacher", "deanery", "admin"].includes(data.user.role)) {
+                        pendingUser = data.user;
+                        document.getElementById("modal-2fa").classList.remove("hidden");
+                    } else {
+                        localStorage.setItem("portal_token", data.user.api_token);
+                        renderUserState(data.user);
+                    }
+                }
+            } catch (err) {
+                errBox.textContent = "Сервер недоступен. Проверьте запуск FastAPI.";
+                errBox.classList.remove("hidden");
+            }
+        }
+
+        function confirm2FA() {
+            const code = document.getElementById("input-2fa").value.trim();
+            if (code.length !== 6) {
+                alert("Введите 6-значный код (например, 123456)");
+                return;
+            }
+            document.getElementById("modal-2fa").classList.add("hidden");
+            document.getElementById("input-2fa").value = "";
+            localStorage.setItem("portal_token", pendingUser.api_token);
+            renderUserState(pendingUser);
+        }
+
+        async function checkStatus() {
+            const token = localStorage.getItem("portal_token");
+            if (!token) return;
+            const res = await fetch(`${API_URL}/me`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const user = await res.json();
+                renderUserState(user);
+            } else {
+                logout();
+            }
+        }
+
+        function renderUserState(user) {
+            currentUser = user;
+            document.getElementById("auth-screen").classList.add("hidden");
+
+            if (user.role === "guest") {
+                document.getElementById("app-screen").classList.add("hidden");
+                document.getElementById("guest-screen").classList.remove("hidden");
+                document.getElementById("guest-id").textContent = `#${user.id}`;
+                document.getElementById("guest-name").textContent = user.full_name;
+                return;
+            }
+
+            document.getElementById("guest-screen").classList.add("hidden");
+            document.getElementById("app-screen").classList.remove("hidden");
+
+            document.getElementById("header-name").textContent = user.full_name;
+            const groupLabel = user.group_name ? ` • Группа ${user.group_name}` : "";
+            document.getElementById("header-role").textContent = `${ROLE_NAMES[user.role]}${groupLabel}`;
+
+            const isStaff = ["deanery", "admin"].includes(user.role);
+            document.getElementById("nav-deanery").classList.toggle("hidden", !isStaff);
+            if (isStaff) loadUsersList();
+        }
+
+        function openSection(secId) {
+            document.querySelectorAll("main section").forEach(el => el.classList.add("hidden"));
+            document.getElementById(`sec-${secId}`).classList.remove("hidden");
+
+            document.querySelectorAll(".nav-btn").forEach(btn => {
+                const active = btn.dataset.sec === secId;
+                btn.classList.toggle("border-indigo-600", active);
+                btn.classList.toggle("text-indigo-600", active);
+                btn.classList.toggle("border-transparent", !active);
+                btn.classList.toggle("text-slate-500", !active);
+            });
+        }
+
+        async function loadUsersList() {
+            const token = localStorage.getItem("portal_token");
+            const res = await fetch(`${API_URL}/users`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const tbody = document.getElementById("users-table-body");
+            tbody.innerHTML = data.users.map(u => `
+                <tr>
+                    <td class="py-3 px-2 font-mono text-slate-500">#${u.id}</td>
+                    <td class="py-3 px-2 font-medium">${u.full_name}</td>
+                    <td class="py-3 px-2 text-slate-500">${u.email}</td>
+                    <td class="py-3 px-2">
+                        <select id="role-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                            <option value="guest" ${u.role === 'guest' ? 'selected' : ''}>Гость</option>
+                            <option value="student" ${u.role === 'student' ? 'selected' : ''}>Ученик</option>
+                            <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>Учитель</option>
+                            ${currentUser.role === 'admin' ? `<option value="deanery" ${u.role === 'deanery' ? 'selected' : ''}>Деканат</option>` : ''}
+                            ${currentUser.role === 'admin' ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Админ</option>` : ''}
+                        </select>
+                    </td>
+                    <td class="py-3 px-2">
+                        <select id="group-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                            <option value="">Без группы</option>
+                            ${data.groups.map(g => `<option value="${g.id}" ${u.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="py-3 px-2">
+                        <button onclick="saveUserRole(${u.id})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold">Сохранить</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function saveUserRole(userId) {
+            const token = localStorage.getItem("portal_token");
+            const role = document.getElementById(`role-${userId}`).value;
+            const groupVal = document.getElementById(`group-${userId}`).value;
+            const group_id = groupVal ? parseInt(groupVal) : null;
+
+            const res = await fetch(`${API_URL}/users/role`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ user_id: userId, role, group_id })
+            });
+
+            if (res.ok) {
+                alert("Роль и группа обновлены!");
+                loadUsersList();
+            } else {
+                const err = await res.json();
+                alert(err.detail || "Ошибка сохранения");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("portal_token");
+            location.reload();
+        }
+
+        checkStatus();
+    </script>
+</body>
+</html>
