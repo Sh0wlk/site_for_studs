@@ -68,7 +68,17 @@ class QuestionSchema(BaseModel):
     options: List[str]
     correct_index: int
 
-
+class ScheduleSchema(BaseModel):
+    group_id: int
+    day_of_week: str
+    time_start: str
+    time_end: str
+    subject: str
+    room: int
+    corp: int
+    teacher_name: str
+    lesson_type: str
+    
 class TestCreateSchema(BaseModel):
     title: str
     group_id: int
@@ -130,9 +140,11 @@ async def create_tables(cur) -> None:
             id SERIAL PRIMARY KEY,
             group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
             day_of_week VARCHAR(20) NOT NULL,
-            time_slot VARCHAR(30) NOT NULL,
+            time_start TIMESTAMP NOT NULL,
+            time_end TIMESTAMP NOT NULL,
             subject TEXT NOT NULL,
-            room VARCHAR(30) NOT NULL,
+            room VARCHAR(3) NOT NULL,
+            corp VARCHAR(2) NOT NULL,
             teacher_name TEXT NOT NULL,
             lesson_type VARCHAR(30) DEFAULT 'Лекция'
         );
@@ -211,11 +223,11 @@ async def seed_demo_data(cur) -> None:
         if group_row:
             gid = group_row["id"]
             await cur.execute("""
-                INSERT INTO schedule (group_id, day_of_week, time_slot, subject, room, teacher_name, lesson_type) VALUES
-                (%s, 'Понедельник', '09:00 - 10:30', 'Алгоритмы и структуры данных', 'Ауд. 304', 'Смирнов А.В.', 'Лекция'),
-                (%s, 'Понедельник', '10:45 - 12:15', 'Базы данных (PostgreSQL)', 'Комп. класс 12', 'Козлова Е.Н.', 'Практика'),
-                (%s, 'Вторник', '09:00 - 10:30', 'Веб-разработка и API', 'Комп. класс 05', 'Смирнов А.В.', 'Лабораторная'),
-                (%s, 'Среда', '12:45 - 14:15', 'Информационная безопасность', 'Ауд. 410', 'Волков Д.С.', 'Лекция')
+                INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type) VALUES
+                (%s, 'Понедельник', '2026-11-09 09:00:00','2026-11-09 10:30:00', 'Алгоритмы и структуры данных', '304', '1', 'Смирнов А.В.', 'Лекция'),
+                (%s, 'Понедельник', '2026-11-09 10:45:00','2026-11-09 12:15:00', 'Базы данных (PostgreSQL)', '12', '1', 'Козлова Е.Н.', 'Практика'),
+                (%s, 'Вторник', '2026-11-10 09:00:00','2026-11-10 10:30:00', 'Веб-разработка и API', '5', '10', 'Смирнов А.В.', 'Лабораторная'),
+                (%s, 'Среда', '2026-11-11 09:00:00','2026-11-11 10:30:00', 'Информационная безопасность', '410', '5', 'Волков Д.С.', 'Лекция')
             """, (gid, gid, gid, gid))
 
 
@@ -431,15 +443,12 @@ async def create_news(data: NewsCreateSchema, current_user: dict = Depends(get_c
 @app.get("/api/schedule")
 async def get_schedule(group_id: Optional[int] = None, current_user: dict = Depends(get_current_user)):
     target_group = group_id or current_user.get("group_id")
-
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("SELECT * FROM groups ORDER BY name")
             groups = await cur.fetchall()
-
             if not target_group and groups:
                 target_group = groups[0]["id"]
-
             await cur.execute("SELECT * FROM schedule WHERE group_id = %s ORDER BY id", (target_group,))
             lessons = await cur.fetchall()
 
@@ -448,7 +457,11 @@ async def get_schedule(group_id: Optional[int] = None, current_user: dict = Depe
         "selected_group": target_group,
         "lessons": lessons
     }
-
+@app.post("/api/schedule")
+async def change_schedule(schedule_changes: ScheduleSchema, current_user: dict = Depends(get_current_user)):
+    if current_user.get("group_id") != "Студент":
+        print("unbder the construction")
+        
 
 # ==============================================================================
 # 8. МОДУЛЬ ТЕСТИРОВАНИЯ
