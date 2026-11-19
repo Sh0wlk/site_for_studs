@@ -3,250 +3,699 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Университетский портал — MVP</title>
+    <title>Университетский портал</title>
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+        <style>
+        :root {
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --btn-text: #ffffff;
+            --bg-main: #f4f6fb;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+        body.dark {
+            --bg-main: #090d16;
+            --bg-card: #121826;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #1f2937;
+        }
+
+        /* Синхронный плавный переход при смене темы */
+        body, .bg-white, .bg-slate-50, .bg-slate-100, header, aside, input, select, textarea, button, a, img, details, tr, td, th {
+            transition: background-color 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+                        color 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+                        border-color 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.42s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        /* Быстрый отклик при наведении курсора (0.14s) */
+        button:hover, a:hover, .nav-btn:hover {
+            transition-duration: 0.14s !important;
+        }
+
+        body {
+            background-color: var(--bg-main) !important;
+            color: var(--text-main) !important;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .bg-white { background-color: var(--bg-card) !important; }
+        .bg-slate-50, .bg-slate-100 { background-color: var(--bg-main) !important; }
+        .text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600 { color: var(--text-main) !important; }
+        .text-slate-500, .text-slate-400 { color: var(--text-muted) !important; }
+
+        /* Убираем все белые обводки (включая обычный class="border" у картинок и таблиц) */
+        *, *::before, *::after {
+            border-color: var(--border-color);
+        }
+        .border, .border-t, .border-b, .border-r, .border-l,
+        .border-slate-200, .border-slate-300, .border-slate-100 {
+            border-color: var(--border-color) !important;
+        }
+
+        /* Адаптация светлых цветных плашек под тёмную тему */
+        body.dark .bg-indigo-50 { background-color: color-mix(in srgb, var(--accent) 18%, var(--bg-card)) !important; color: #e2e8f0 !important; }
+        body.dark .bg-amber-50, body.dark .bg-amber-50\/70 { background-color: rgba(245, 158, 11, 0.14) !important; }
+        body.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.15) !important; color: #6ee7b7 !important; }
+        body.dark .bg-rose-50, body.dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.16) !important; color: #fda4af !important; }
+        body.dark .bg-slate-200 { background-color: #1e293b !important; }
+
+        .bg-accent { background-color: var(--accent) !important; color: var(--btn-text) !important; }
+        .bg-accent:hover { background-color: var(--accent-hover) !important; }
+        .text-accent { color: var(--accent) !important; }
+        .border-accent { border-color: var(--accent) !important; }
+
+        input, select, textarea {
+            background-color: var(--bg-main) !important;
+            color: var(--text-main) !important;
+        }
         .hidden { display: none !important; }
+
+        /* Быстрая подсветка пунктов меню и кнопок при наведении */
+        .hover\:bg-slate-50:hover,
+        .hover\:bg-slate-100:hover,
+        .nav-btn:hover {
+            background-color: color-mix(in srgb, var(--accent) 12%, var(--bg-card)) !important;
+            color: var(--accent) !important;
+        }
+        .nav-btn.active {
+            background-color: color-mix(in srgb, var(--accent) 16%, transparent) !important;
+            color: var(--accent) !important;
+            font-weight: 700;
+        }
+
+        /* 3D-переворот карточки тренажера */
+        .flip-card { perspective: 1000px; cursor: pointer; }
+        .flip-inner { position: relative; width: 100%; height: 220px; transition: transform 0.55s cubic-bezier(.4,.2,.2,1); transform-style: preserve-3d; }
+        .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+        .flip-front, .flip-back {
+            position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px; border-radius: 18px; text-align: center;
+        }
+        .flip-back { transform: rotateY(180deg); }
+        body.dark .flip-back { background-color: #172554 !important; border-color: var(--accent) !important; }
     </style>
+
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen">
+<body class="min-h-screen transition-colors">
 
     <!-- 1. ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
     <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-lg border border-slate-200 p-8">
             <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 text-white font-bold text-xl mb-3">УП</div>
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent font-bold text-xl mb-3">УП</div>
                 <h1 class="text-2xl font-bold text-slate-900">Единый портал ВУЗа</h1>
-                <p class="text-sm text-slate-500 mt-1">Единый доступ к расписанию, тестам и деканату</p>
+                <p class="text-sm text-slate-500 mt-1">Цифровая среда студентов и преподавателей</p>
             </div>
-
             <div class="flex bg-slate-100 p-1 rounded-xl mb-6">
-                <button onclick="setAuthTab('login')" id="tab-login" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition">Вход</button>
-                <button onclick="setAuthTab('register')" id="tab-register" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition">Регистрация</button>
+                <button onclick="setAuthTab('login')" id="tab-login" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900">Вход</button>
+                <button onclick="setAuthTab('register')" id="tab-register" class="flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500">Регистрация</button>
             </div>
-
             <form id="auth-form" onsubmit="submitAuth(event)" class="space-y-4">
                 <div id="field-fullname" class="hidden">
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ФИО полностью</label>
-                    <input type="text" id="input-fullname" placeholder="Иванов Иван Иванович" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">ФИО полностью</label>
+                    <input type="text" id="input-fullname" placeholder="Иванов Иван Иванович" class="w-full px-4 py-2.5 rounded-xl border text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email</label>
-                    <input type="email" id="input-email" required placeholder="student@uni.ru" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Email</label>
+                    <input type="email" id="input-email" required placeholder="student@uni.ru" class="w-full px-4 py-2.5 rounded-xl border text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Пароль</label>
-                    <input type="password" id="input-password" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-600 focus:outline-none">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Пароль</label>
+                    <input type="password" id="input-password" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl border text-sm">
                 </div>
-                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition shadow-md">Войти в систему</button>
+                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-accent font-semibold rounded-xl text-sm shadow">Войти в систему</button>
             </form>
-
             <div id="auth-error" class="hidden mt-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm border border-red-200"></div>
         </div>
     </div>
 
     <!-- МОДАЛЬНОЕ ОКНО 2FA -->
     <div id="modal-2fa" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center">
-            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">🔐</div>
+        <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl text-center border border-slate-200">
+            <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
             <h3 class="text-lg font-bold text-slate-900">Двухфакторная защита</h3>
-            <p class="text-sm text-slate-500 mt-1">Введите 6-значный код из приложения-аутентификатора (для демо подойдет любой, например <span class="font-mono font-bold">123456</span>)</p>
-            <input type="text" id="input-2fa" maxlength="6" placeholder="000000" class="mt-4 w-full text-center tracking-[0.5em] font-mono text-2xl py-3 border-2 border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none">
-            <button onclick="confirm2FA()" class="mt-4 w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Подтвердить вход</button>
+            <p class="text-xs text-slate-500 mt-1">Введите 6-значный код подтверждения (демо: 123456)</p>
+            <input type="text" id="input-2fa" maxlength="6" placeholder="000000" class="mt-4 w-full text-center tracking-[0.5em] font-mono text-2xl py-3 border rounded-xl">
+            <button onclick="confirm2FA()" class="mt-4 w-full py-2.5 bg-accent font-semibold rounded-xl text-sm">Подтвердить вход</button>
         </div>
     </div>
 
-    <!-- 2. ЭКРАН ОЖИДАНИЯ (Роль: Гость) -->
+    <!-- 2. ЭКРАН ОЖИДАНИЯ (ГОСТЬ) -->
     <div id="guest-screen" class="hidden min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-8 text-center">
-            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">⏳</div>
-            <h2 class="text-2xl font-bold text-slate-900">Ожидает подтверждения</h2>
-            <p class="text-slate-500 text-sm mt-2">Ваша заявка передана в деканат. Сообщите свой ID сотруднику для активации учетной записи.</p>
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-lg border border-slate-200 p-8 text-center">
+            <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="clock" class="w-7 h-7"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">Аккаунт ожидает подтверждения</h2>
+            <p class="text-slate-500 text-sm mt-2">Передайте ваш ID сотруднику деканата для активации доступа.</p>
             <div class="my-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div class="text-xs uppercase text-slate-400 font-semibold">Ваш уникальный ID</div>
-                <div id="guest-id" class="text-3xl font-mono font-bold text-indigo-600 mt-1">#0</div>
-                <div id="guest-name" class="text-sm font-medium text-slate-700 mt-2"></div>
+                <div class="text-xs uppercase text-slate-400 font-semibold">Ваш ID в системе</div>
+                <div id="guest-id" class="text-3xl font-mono font-bold text-accent mt-1">#0</div>
+                <div id="guest-name" class="text-sm font-medium text-slate-700 mt-1"></div>
             </div>
             <div class="flex gap-3">
-                <button onclick="checkStatus()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition">Обновить статус</button>
-                <button onclick="logout()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl transition">Выйти</button>
+                <button onclick="checkStatus()" class="flex-1 py-2.5 bg-accent font-semibold rounded-xl text-sm">Обновить статус</button>
+                <button onclick="logout()" class="px-4 py-2.5 bg-slate-100 border border-slate-200 font-semibold rounded-xl text-sm">Выйти</button>
             </div>
         </div>
     </div>
-    <!-- 3. ОСНОВНОЙ ПОРТАЛ -->
-    <div id="app-screen" class="hidden min-h-screen flex flex-col">
-        <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-            <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+
+    <!-- 3. ОСНОВНОЙ ПОРТАЛ (СКРУГЛЕННЫЙ САЙДБАР + ВЕРХНИЙ БАР) -->
+    <div id="app-screen" class="hidden min-h-screen flex lg:p-3 lg:gap-3">
+        <!-- Скругленный боковой сайдбар без острых углов -->
+        <aside id="sidebar" class="fixed inset-y-3 left-3 z-40 w-64 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col transform -translate-x-[110%] lg:translate-x-0 lg:sticky lg:top-3 lg:h-[calc(100vh-1.5rem)] transition-transform">
+            <div class="h-16 px-5 flex items-center justify-between border-b border-slate-200">
                 <div class="flex items-center gap-3">
-                    <span class="w-9 h-9 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center">УП</span>
-                    <span class="font-bold text-slate-900 hidden sm:inline">Портал Университета</span>
+                    <span class="w-9 h-9 rounded-xl bg-accent font-extrabold flex items-center justify-center text-sm shadow-sm">УП</span>
+                    <span class="font-bold text-base text-slate-900 tracking-tight">Портал ВУЗа</span>
                 </div>
-                <div class="flex items-center gap-4">
-                    <label class="relative cursor-pointer group" title="Нажмите, чтобы загрузить свою аватарку">
-                        <img id="header-avatar" src="assets/avatar1.png" class="w-10 h-10 rounded-full object-cover border-2 border-indigo-100 group-hover:border-indigo-500 transition">
-                        <span class="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center shadow">✎</span>
-                        <input type="file" accept="image/*" onchange="uploadMyAvatar(event)" class="hidden">
-                    </label>
-                    <div class="text-right">
-                        <div id="header-name" class="text-sm font-semibold text-slate-900"></div>
-                        <div id="header-role" class="text-xs text-indigo-600 font-medium"></div>
+                <button onclick="toggleSidebar()" class="lg:hidden p-1.5 text-slate-500">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <nav class="flex-1 px-3 py-4 space-y-1 text-sm overflow-y-auto">
+                <button onclick="openSection('dashboard')" class="nav-btn active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="dashboard">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i><span>Главная и новости</span>
+                </button>
+                <button onclick="openSection('schedule')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="schedule">
+                    <span class="flex items-center gap-3"><i data-lucide="calendar-days" class="w-4 h-4"></i><span>Расписание</span></span>
+                    <span id="badge-schedule" class="hidden w-2 h-2 rounded-full bg-amber-500"></span>
+                </button>
+                <button onclick="openSection('exams')" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="exams">
+                    <i data-lucide="graduation-cap" class="w-4 h-4"></i><span>Сессия и зачеты</span>
+                </button>
+                <button onclick="openSection('decks')" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="decks">
+                    <i data-lucide="layers" class="w-4 h-4"></i><span>Умные карточки</span>
+                </button>
+                <button onclick="openSection('tests')" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="tests">
+                    <i data-lucide="check-square" class="w-4 h-4"></i><span>Тестирование</span>
+                </button>
+                <button onclick="openSection('tickets')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="tickets">
+                    <span class="flex items-center gap-3"><i data-lucide="message-square" class="w-4 h-4"></i><span>Обращения</span></span>
+                    <span id="badge-tickets" class="hidden px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded-full">0</span>
+                </button>
+                <button onclick="openSection('faq')" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="faq">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i><span>Справка (FAQ)</span>
+                </button>
+
+                <div id="staff-nav-group" class="hidden pt-4 mt-4 border-t border-slate-200 space-y-1">
+                    <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Управление</div>
+                    <button id="nav-deanery" onclick="openSection('deanery')" class="nav-btn w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="deanery">
+                        <span class="flex items-center gap-3"><i data-lucide="users" class="w-4 h-4"></i><span>Деканат и роли</span></span>
+                        <span id="badge-guests" class="hidden px-1.5 py-0.5 text-[10px] bg-red-600 text-white rounded-full">0</span>
+                    </button>
+                    <button id="nav-audit" onclick="openSection('audit')" class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-50 transition" data-sec="audit">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i><span>Журнал аудита</span>
+                    </button>
+                </div>
+            </nav>
+
+            <div class="p-3 border-t border-slate-200">
+                <button onclick="logout()" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-rose-600 hover:bg-rose-50 font-medium transition">
+                    <i data-lucide="log-out" class="w-4 h-4"></i><span>Выйти из аккаунта</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Правая рабочая область -->
+        <div class="flex-1 flex flex-col min-w-0">
+            <!-- Верхний бар с карточкой профиля -->
+            <header class="h-16 bg-white border border-slate-200 lg:rounded-2xl px-5 flex items-center justify-between sticky top-0 lg:top-3 z-30 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-slate-100 border border-slate-200">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-1.5 h-5 rounded-full bg-accent"></span>
+                        <h2 id="page-heading" class="font-bold text-lg text-slate-900 leading-none">Главная и новости</h2>
                     </div>
-                    <button onclick="logout()" class="text-sm px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium">Выйти</button>
                 </div>
-            </div>
-        </header>
 
-        <nav class="bg-white border-b border-slate-200 overflow-x-auto">
-            <div class="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-semibold">
-                <button onclick="openSection('dashboard')" class="nav-btn py-3.5 border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap" data-sec="dashboard">Главная и Новости</button>
-                <button onclick="openSection('schedule')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="schedule">Расписание</button>
-                <button onclick="openSection('tests')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="tests">Тестирование</button>
-                <button onclick="openSection('tickets')" class="nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="tickets">Обращения</button>
-                <button id="nav-deanery" onclick="openSection('deanery')" class="hidden nav-btn py-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap" data-sec="deanery">Деканат / Роли</button>
-            </div>
-        </nav>
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleDarkTheme()" id="theme-btn" class="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:opacity-80" title="Сменить тему">
+                        <i data-lucide="moon" class="w-4 h-4"></i>
+                    </button>
 
-        <main class="max-w-6xl w-full mx-auto px-4 py-6 flex-1">
+                    <!-- Прямоугольная плашка профиля (открывает Личный кабинет) -->
+                    <button onclick="openProfileModal()" class="flex items-center gap-3 pl-2 pr-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition group">
+                        <img id="header-avatar" src="assets/avatar1.png" class="w-9 h-9 rounded-lg object-cover border border-slate-300">
+                        <div class="hidden sm:block leading-tight">
+                            <div id="header-name" class="text-xs font-bold text-slate-900 group-hover:text-accent transition"></div>
+                            <div id="header-role" class="text-[11px] text-slate-500 mt-0.5"></div>
+                        </div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                </div>
+            </header>
 
-            <!-- ВКЛАДКА 1: ГЛАВНАЯ, НОВОСТИ И ПРЕПОДАВАТЕЛИ -->
+            <main class="max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 flex-1">
+            <!-- 1. ГЛАВНАЯ И НОВОСТИ -->
             <section id="sec-dashboard" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="lg:col-span-2 space-y-4">
-                    <div id="news-create-box" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-900 mb-3">Опубликовать новость</h3>
+                    <div id="news-create-box" class="hidden bg-white p-5 rounded-2xl border border-slate-200">
+                        <h3 class="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2">
+                            <i data-lucide="megaphone" class="w-4 h-4 text-accent"></i><span>Опубликовать объявление</span>
+                        </h3>
                         <form onsubmit="publishNews(event)" class="space-y-3">
                             <div class="flex gap-3">
-                                <input type="text" id="news-title" required placeholder="Заголовок объявления" class="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm">
-                                <select id="news-tag" class="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white">
+                                <input type="text" id="news-title" required placeholder="Заголовок" class="flex-1 px-3 py-2 border rounded-xl text-sm">
+                                <select id="news-tag" class="px-3 py-2 border rounded-xl text-sm">
                                     <option value="Общее">Общее</option>
                                     <option value="Учеба">Учеба</option>
                                     <option value="Мероприятия">Мероприятия</option>
                                 </select>
                             </div>
-                            <textarea id="news-content" required rows="2" placeholder="Текст новости..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></textarea>
-                            <div class="flex items-center justify-between gap-3">
-                                <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
-                                    <span>📷 Прикрепить фото с устройства</span>
+                            <textarea id="news-content" required rows="2" placeholder="Текст объявления..." class="w-full px-3 py-2 border rounded-xl text-sm"></textarea>
+                            <div class="flex items-center justify-between">
+                                <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold">
+                                    <i data-lucide="image" class="w-4 h-4"></i><span>Прикрепить фото</span>
                                     <input type="file" id="news-image-input" accept="image/*" class="hidden">
                                 </label>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Опубликовать</button>
+                                <button type="submit" class="px-4 py-2 bg-accent text-xs font-semibold rounded-xl">Опубликовать</button>
                             </div>
                         </form>
                     </div>
-
-                    <h2 class="text-lg font-bold text-slate-900">Лента новостей университета</h2>
                     <div id="news-list" class="space-y-4"></div>
                 </div>
-
-                <div class="space-y-4">
-                    <h2 class="text-lg font-bold text-slate-900">Преподаватели</h2>
-                    <div id="teachers-list" class="space-y-3"></div>
+                <div class="space-y-3">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <h3 class="font-bold text-sm text-slate-900 mb-3 flex items-center gap-2">
+                            <i data-lucide="user-check" class="w-4 h-4 text-accent"></i><span>Преподавательский состав</span>
+                        </h3>
+                        <div id="teachers-list" class="space-y-2.5"></div>
+                    </div>
                 </div>
             </section>
 
-            <!-- ВКЛАДКА 2: РАСПИСАНИЕ -->
+            <!-- 2. РАСПИСАНИЕ ЗАНЯТИЙ -->
             <section id="sec-schedule" class="hidden space-y-4">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Расписание занятий</h2>
-                        <p class="text-xs text-slate-500">Выберите учебную группу для просмотра сетки пар</p>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="users" class="w-4 h-4 text-accent"></i>
+                        <select id="schedule-group-select" onchange="loadSchedule(this.value)" class="px-3 py-1.5 border rounded-xl text-sm font-semibold"></select>
                     </div>
-                    <select id="schedule-group-select" onchange="loadSchedule(this.value)" class="px-4 py-2 border border-slate-300 rounded-xl text-sm font-semibold bg-white"></select>
-                </div>
-                <div id="schedule-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-            </section>
-
-            <!-- ВКЛАДКА 3: ТЕСТИРОВАНИЕ -->
-            <section id="sec-tests" class="hidden space-y-6">
-                <div id="test-creator-box" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-900 mb-3">Создать новый тест для группы</h3>
-                    <form onsubmit="createTest(event)" class="space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <input type="text" id="test-title" required placeholder="Название теста (напр. Основы SQL)" class="px-3 py-2 border border-slate-300 rounded-xl text-sm">
-                            <select id="test-group-select" required class="px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white"></select>
-                        </div>
-                        <div id="test-questions-container" class="space-y-4"></div>
-                        <div class="flex gap-3">
-                            <button type="button" onclick="addQuestionBlock()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold rounded-xl">+ Добавить вопрос</button>
-                            <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Сохранить и назначить тест</button>
-                        </div>
-                    </form>
+                    <button id="btn-open-copy" onclick="document.getElementById('copy-schedule-box').classList.toggle('hidden')" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-accent rounded-xl text-xs font-semibold">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i><span>Управление расписанием</span>
+                    </button>
                 </div>
 
-                <div id="test-runner-box" class="hidden bg-white p-6 rounded-2xl shadow-md border-2 border-indigo-600 space-y-4">
-                    <div class="flex justify-between items-center border-b pb-3">
-                        <h3 id="runner-title" class="text-lg font-bold text-slate-900"></h3>
-                        <button onclick="closeTestRunner()" class="text-sm text-slate-500 hover:text-slate-800">✕ Закрыть</button>
-                    </div>
-                    <form id="runner-form" onsubmit="submitTestAnswers(event)" class="space-y-4"></form>
-                </div>
-
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900 mb-3">Доступные тесты</h2>
-                    <div id="tests-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </div>
-            </section>
-
-            <!-- ВКЛАДКА 4: ОБРАЩЕНИЯ (ВОПРОС-ОТВЕТ) -->
-            <section id="sec-tickets" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div id="ticket-create-box" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 h-fit">
-                    <h3 class="font-bold text-slate-900 mb-3">Задать вопрос</h3>
-                    <form onsubmit="createTicket(event)" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Кому отправить</label>
-                            <select id="ticket-recipient" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white">
-                                <option value="deanery">В Деканат</option>
+                <!-- Свёрнутая панель деканата -->
+                <div id="copy-schedule-box" class="hidden bg-white p-5 rounded-2xl border border-slate-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <form onsubmit="submitCopySchedule(event)" class="space-y-2.5">
+                        <h4 class="font-bold text-xs uppercase text-slate-500 flex items-center gap-1.5">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i><span>Копировать расписание</span>
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <select id="copy-src-group" class="p-2 border rounded-xl"></select>
+                            <select id="copy-dst-group" class="p-2 border rounded-xl"></select>
+                            <select id="copy-src-day" class="p-2 border rounded-xl">
+                                <option value="ALL">Вся неделя</option>
+                                <option>Понедельник</option><option>Вторник</option><option>Среда</option>
+                                <option>Четверг</option><option>Пятница</option><option>Суббота</option>
+                            </select>
+                            <select id="copy-dst-day" class="p-2 border rounded-xl">
+                                <option value="">В те же дни</option>
+                                <option value="Понедельник">На Понедельник</option><option value="Вторник">На Вторник</option>
+                                <option value="Среда">На Среду</option><option value="Четверг">На Четверг</option>
+                                <option value="Пятница">На Пятницу</option><option value="Суббота">На Субботу</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Тема обращения</label>
-                            <input type="text" id="ticket-subject" required placeholder="Например: Справка об обучении" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        <button type="submit" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-semibold">Выполнить копирование</button>
+                    </form>
+
+                    <form onsubmit="submitNewLesson(event)" class="space-y-2.5">
+                        <h4 class="font-bold text-xs uppercase text-slate-500 flex items-center gap-1.5">
+                            <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i><span>Добавить новую пару</span>
+                        </h4>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <select id="new-lesson-day" class="p-2 border rounded-xl">
+                                <option>Понедельник</option><option>Вторник</option><option>Среда</option>
+                                <option>Четверг</option><option>Пятница</option><option>Суббота</option>
+                            </select>
+                            <input type="time" id="new-lesson-start" value="09:00" required class="p-2 border rounded-xl">
+                            <input type="time" id="new-lesson-end" value="10:30" required class="p-2 border rounded-xl">
+                            <input type="text" id="new-lesson-subj" placeholder="Предмет" required class="p-2 border rounded-xl">
+                            <input type="text" id="new-lesson-room" placeholder="Ауд. (304)" required class="p-2 border rounded-xl">
+                            <input type="text" id="new-lesson-corp" placeholder="Корп. (1)" required class="p-2 border rounded-xl">
                         </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 mb-1">Ваш вопрос</label>
-                            <textarea id="ticket-question" required rows="3" placeholder="Опишите ваш вопрос..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"></textarea>
+                        <div class="flex gap-2 text-xs">
+                            <input type="text" id="new-lesson-teacher" placeholder="ФИО преподавателя" required class="flex-1 p-2 border rounded-xl">
+                            <button type="submit" class="px-4 py-2 bg-accent rounded-xl font-semibold">Добавить</button>
                         </div>
-                        <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl">Отправить обращение</button>
                     </form>
                 </div>
 
-                <div class="lg:col-span-2 space-y-3">
-                    <h2 class="text-lg font-bold text-slate-900">История обращений</h2>
-                    <div id="tickets-list" class="space-y-3"></div>
-                </div>
+                <div id="schedule-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
             </section>
 
-                        <!-- ВКЛАДКА 5: ДЕКАНАТ И УПРАВЛЕНИЕ РОЛЯМИ -->
-            <section id="sec-deanery" class="hidden space-y-4">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold text-slate-900 mb-1">Управление пользователями и заявками</h2>
-                    <p class="text-sm text-slate-500 mb-4">Подтверждайте регистрацию гостей, назначайте роли и распределяйте студентов по группам.</p>
+            <!-- 3. ОТДЕЛЬНАЯ ВКЛАДКА: СЕССИЯ И ЗАЧЕТЫ -->
+            <section id="sec-exams" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <select id="exams-group-select" onchange="loadExams(this.value)" class="px-3 py-1.5 border rounded-xl text-sm font-semibold"></select>
+                    <button id="btn-open-exam-form" onclick="document.getElementById('exam-creator-box').classList.toggle('hidden')" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-accent rounded-xl text-xs font-semibold">
+                        <i data-lucide="file-plus" class="w-4 h-4"></i><span>Добавить экзамен</span>
+                    </button>
+                </div>
 
-                    <!-- УМНЫЙ ПОИСК (TRIE) -->
-                    <div class="relative mb-5 max-w-md">
-                        <input type="text" id="user-search-input" oninput="handleUserSearch(this.value)" placeholder="Поиск по фамилии, имени или email..." autocomplete="off" class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:border-indigo-600 focus:outline-none">
-                        <span class="absolute left-3.5 top-2.5 text-slate-400">🔍</span>
-                        <div id="search-suggestions" class="hidden absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"></div>
+                <div id="exam-creator-box" class="hidden bg-white p-5 rounded-2xl border border-slate-200">
+                    <form onsubmit="createExamSession(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <select id="exam-group" class="p-2.5 border rounded-xl"></select>
+                        <select id="exam-course" class="p-2.5 border rounded-xl">
+                            <option value="1">1 курс</option>
+                            <option value="2">2 курс</option>
+                            <option value="3">3 курс</option>
+                            <option value="4">4 курс</option>
+                        </select>
+                        <input type="text" id="exam-year" value="2026/2027" required placeholder="Учебный год" class="p-2.5 border rounded-xl">
+                        <input type="text" id="exam-subject" required placeholder="Дисциплина" class="p-2.5 border rounded-xl">
+                        <input type="date" id="exam-date" required class="p-2.5 border rounded-xl">
+                        <input type="text" id="exam-room" required placeholder="Аудитория и корпус" class="p-2.5 border rounded-xl">
+                        <label class="sm:col-span-2 cursor-pointer flex items-center gap-2 p-2.5 bg-slate-100 border rounded-xl font-semibold">
+                            <i data-lucide="paperclip" class="w-4 h-4"></i><span>Прикрепить требования (.pdf, .doc, .docx)</span>
+                            <input type="file" id="exam-doc-file" accept=".pdf,.doc,.docx" class="hidden">
+                        </label>
+                        <button type="submit" class="py-2.5 bg-accent rounded-xl font-semibold">Сохранить</button>
+                    </form>
+                </div>
+                <div id="exams-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+
+            <!-- 4. УМНЫЕ КАРТОЧКИ (FLASHCARDS + TRIE ПОИСК) -->
+            <section id="sec-decks" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div class="relative flex-1 min-w-[220px]">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5"></i>
+                        <input type="text" id="deck-search-input" oninput="handleDeckSearch(this.value)" placeholder="Поиск по теме, курсу или автору..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-sm">
                     </div>
+                    <button onclick="document.getElementById('deck-creator-box').classList.toggle('hidden')" class="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-xs font-semibold rounded-xl">
+                        <i data-lucide="plus" class="w-4 h-4"></i><span>Создать набор</span>
+                    </button>
+                </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-sm">
+                <div id="deck-creator-box" class="hidden bg-white p-5 rounded-2xl border border-slate-200">
+                    <form onsubmit="createDeck(event)" class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input type="text" id="deck-title" required placeholder="Название набора" class="px-3 py-2 border rounded-xl text-sm">
+                            <input type="text" id="deck-tags" required placeholder="Теги: сессия ивт 2026 1 курс" class="px-3 py-2 border rounded-xl text-sm">
+                        </div>
+                        <div id="deck-cards-container" class="space-y-2"></div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="addDeckCardRow()" class="px-3.5 py-2 bg-slate-100 border rounded-xl text-xs font-semibold">+ Карточка</button>
+                            <button type="submit" class="px-4 py-2 bg-accent rounded-xl text-xs font-semibold">Опубликовать</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="decks-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+            <!-- 5. ТЕСТИРОВАНИЕ И PDF-ВЕДОМОСТЬ -->
+            <section id="sec-tests" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <span class="text-sm text-slate-500">Контрольные тесты и автоматическая проверка знаний</span>
+                    <button id="btn-open-test-form" onclick="document.getElementById('test-creator-box').classList.toggle('hidden')" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 bg-accent rounded-xl text-xs font-semibold">
+                        <i data-lucide="file-plus-2" class="w-4 h-4"></i><span>Создать тест</span>
+                    </button>
+                </div>
+
+                <div id="test-creator-box" class="hidden bg-white p-5 rounded-2xl border border-slate-200">
+                    <form onsubmit="createTest(event)" class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input type="text" id="test-title" required placeholder="Название теста" class="px-3 py-2 border rounded-xl text-sm">
+                            <select id="test-group-select" required class="px-3 py-2 border rounded-xl text-sm"></select>
+                        </div>
+                        <div id="test-questions-container" class="space-y-3"></div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="addQuestionBlock()" class="px-3.5 py-2 bg-slate-100 border rounded-xl text-xs font-semibold">+ Вопрос</button>
+                            <button type="submit" class="px-4 py-2 bg-accent rounded-xl text-xs font-semibold">Сохранить тест</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="test-report-box" class="hidden bg-white p-5 rounded-2xl border border-slate-300 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-sm">Ведомость успеваемости</h3>
+                        <div class="flex gap-2">
+                            <button onclick="downloadReportPDF()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i><span>Скачать PDF</span>
+                            </button>
+                            <button onclick="document.getElementById('test-report-box').classList.add('hidden')" class="px-3 py-1.5 bg-slate-100 border rounded-xl text-xs">Закрыть</button>
+                        </div>
+                    </div>
+                    <div id="pdf-printable-area" class="p-4 bg-white text-slate-900">
+                        <h4 id="report-title" class="text-base font-bold mb-2"></h4>
+                        <table class="w-full text-left border-collapse text-xs border border-slate-300">
                             <thead>
-                                <tr class="border-b border-slate-200 text-slate-500">
-                                    <th class="py-3 px-2">ID</th>
-                                    <th class="py-3 px-2">ФИО</th>
-                                    <th class="py-3 px-2">Email</th>
-                                    <th class="py-3 px-2">Роль</th>
-                                    <th class="py-3 px-2">Группа</th>
-                                    <th class="py-3 px-2">Действие</th>
+                                <tr class="bg-slate-100">
+                                    <th class="p-2 border">Студент</th>
+                                    <th class="p-2 border">Группа</th>
+                                    <th class="p-2 border">Баллы</th>
+                                    <th class="p-2 border">Дата</th>
                                 </tr>
                             </thead>
-                            <tbody id="users-table-body" class="divide-y divide-slate-100"></tbody>
+                            <tbody id="report-tbody"></tbody>
                         </table>
                     </div>
                 </div>
+
+                <div id="test-runner-box" class="hidden bg-white p-5 rounded-2xl border-2 border-accent space-y-4">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <h3 id="runner-title" class="font-bold text-base"></h3>
+                        <button onclick="closeTestRunner()" class="text-xs text-slate-500">Закрыть</button>
+                    </div>
+                    <form id="runner-form" onsubmit="submitTestAnswers(event)" class="space-y-3"></form>
+                </div>
+
+                <div id="tests-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
 
-        </main>
+            <!-- 6. ОБРАЩЕНИЯ -->
+            <section id="sec-tickets" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 h-fit space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-sm">Новое обращение</h3>
+                        <button type="button" onclick="fillCertificateTemplate()" class="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 border rounded-lg text-xs font-semibold text-accent">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i><span>Справка</span>
+                        </button>
+                    </div>
+                    <form onsubmit="createTicket(event)" class="space-y-2.5">
+                        <select id="ticket-recipient" class="w-full px-3 py-2 border rounded-xl text-xs">
+                            <option value="deanery">В Деканат</option>
+                        </select>
+                        <input type="text" id="ticket-subject" required placeholder="Тема обращения" class="w-full px-3 py-2 border rounded-xl text-xs">
+                        <textarea id="ticket-question" required rows="3" placeholder="Текст вопроса..." class="w-full px-3 py-2 border rounded-xl text-xs"></textarea>
+                        <button type="submit" class="w-full py-2.5 bg-accent text-xs font-semibold rounded-xl">Отправить</button>
+                    </form>
+                </div>
+                <div id="tickets-list" class="lg:col-span-2 space-y-3"></div>
+            </section>
+
+            <!-- 7. СПРАВКА (FAQ) -->
+            <section id="sec-faq" class="hidden bg-white p-6 rounded-2xl border border-slate-200 space-y-3 max-w-4xl">
+                <details class="p-4 bg-slate-50 rounded-xl border cursor-pointer">
+                    <summary class="font-semibold text-sm">Как заказать справку об обучении или для военкомата?</summary>
+                    <p class="text-xs text-slate-600 mt-2">Откройте раздел «Обращения», нажмите кнопку «Справка» для автозаполнения шаблона и отправьте заявку в Деканат.</p>
+                </details>
+                <details class="p-4 bg-slate-50 rounded-xl border cursor-pointer">
+                    <summary class="font-semibold text-sm">Как закрыть пропуск по болезни?</summary>
+                    <p class="text-xs text-slate-600 mt-2">Сообщите в Деканат через раздел «Обращения» в течение 3 рабочих дней после выздоровления.</p>
+                </details>
+                <details class="p-4 bg-slate-50 rounded-xl border cursor-pointer">
+                    <summary class="font-semibold text-sm">Когда выплачивается стипендия?</summary>
+                    <p class="text-xs text-slate-600 mt-2">Ежемесячно 25-го числа при отсутствии академических задолженностей.</p>
+                </details>
+            </section>
+
+            <!-- 8. ДЕКАНАТ И РОЛИ (Только Деканат и Админ) -->
+            <section id="sec-deanery" class="hidden bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+                <div class="relative max-w-md">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5"></i>
+                    <input type="text" id="user-search-input" oninput="handleUserSearch(this.value)" placeholder="Быстрый поиск по ФИО или Email..." autocomplete="off" class="w-full pl-10 pr-4 py-2 border rounded-xl text-sm">
+                    <div id="search-suggestions" class="hidden absolute z-20 w-full mt-1 bg-white border rounded-xl shadow-lg overflow-hidden"></div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b text-slate-500">
+                                <th class="py-2.5 px-2">ID</th>
+                                <th class="py-2.5 px-2">Пользователь</th>
+                                <th class="py-2.5 px-2">Email</th>
+                                <th class="py-2.5 px-2">Роль</th>
+                                <th class="py-2.5 px-2">Группа</th>
+                                <th class="py-2.5 px-2">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 9. ЖУРНАЛ АУДИТА + ЭКСПОРТ В EXCEL (Только Деканат и Админ) -->
+            <section id="sec-audit" class="hidden bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+                <div class="flex flex-wrap justify-between items-center gap-3">
+                    <span class="text-xs text-slate-500">Журнал действий пользователей и изменений безопасности</span>
+                    <div class="flex gap-2">
+                        <button onclick="exportAuditToExcel()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i><span>Экспорт в Excel (.xlsx)</span>
+                        </button>
+                        <button onclick="loadAuditLogs()" class="px-3 py-2 bg-slate-100 border rounded-xl text-xs font-semibold">Обновить</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b text-slate-500">
+                                <th class="py-2.5 px-2">Время</th>
+                                <th class="py-2.5 px-2">Инициатор</th>
+                                <th class="py-2.5 px-2">Событие</th>
+                                <th class="py-2.5 px-2">Детали</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ЛИЧНОГО КАБИНЕТА (Профиль, Успеваемость, Палитра) -->
+    <div id="modal-profile" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-5">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-base">Личный кабинет и настройки</h3>
+                <button onclick="document.getElementById('modal-profile').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <label class="relative cursor-pointer group shrink-0" title="Нажмите, чтобы загрузить фото">
+                    <img id="modal-avatar" src="assets/avatar1.png" class="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200">
+                    <span class="absolute bottom-1 right-1 p-1.5 rounded-lg bg-accent text-white shadow">
+                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <input type="file" accept="image/*" onchange="uploadMyAvatar(event)" class="hidden">
+                </label>
+                <div class="min-w-0">
+                    <div id="modal-fullname" class="font-bold text-base truncate"></div>
+                    <div id="modal-email" class="text-xs text-slate-500 truncate"></div>
+                    <div id="modal-role-group" class="mt-1.5 inline-block px-2.5 py-0.5 bg-slate-100 border rounded-lg text-xs font-semibold text-accent"></div>
+                </div>
+            </div>
+            <div id="profile-stats-box" class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-3 rounded-xl border">
+                <div id="student-absences-box" class="hidden space-y-2 pt-2 border-t text-xs">
+                    <div class="flex justify-between items-center font-bold">
+                        <span>Мои пропуски по предметам</span>
+                        <span id="absences-total-badge" class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-lg">0 н</span>
+                    </div>
+                    <div id="absences-subject-list" class="max-h-32 overflow-y-auto space-y-1.5"></div>
+                </div>
+
+                <div>
+                    <div class="text-[11px] text-slate-500">Ваш ID</div>
+                    <div id="stat-id" class="font-mono font-bold text-sm mt-0.5">#0</div>
+                </div>
+                <div>
+                    <div class="text-[11px] text-slate-500">Пройдено тестов</div>
+                    <div id="stat-tests-done" class="font-bold text-sm mt-0.5">0</div>
+                </div>
+                <div>
+                    <div class="text-[11px] text-slate-500">Средний балл</div>
+                    <div id="stat-avg-score" class="font-bold text-sm text-emerald-600 mt-0.5">—</div>
+                </div>
+            </div>
+
+                        <div class="space-y-2.5 pt-3 border-t text-xs">
+                <div class="font-bold text-slate-700">Цветовая схема (Светлая / Тёмная)</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="selectThemePalette('blue')" class="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border text-left font-semibold">
+                        <span class="w-4 h-4 rounded-full bg-blue-600 shrink-0"></span><span>Синий океан</span>
+                    </button>
+                    <button type="button" onclick="selectThemePalette('indigo')" class="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border text-left font-semibold">
+                        <span class="w-4 h-4 rounded-full bg-indigo-600 shrink-0"></span><span>Фиолетовый неон</span>
+                    </button>
+                    <button type="button" onclick="selectThemePalette('emerald')" class="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border text-left font-semibold">
+                        <span class="w-4 h-4 rounded-full bg-emerald-600 shrink-0"></span><span>Изумрудный лес</span>
+                    </button>
+                    <button type="button" onclick="selectThemePalette('rose')" class="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border text-left font-semibold">
+                        <span class="w-4 h-4 rounded-full bg-rose-600 shrink-0"></span><span>Малиновый гранат</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-2 border-t flex justify-end">
+                <button type="button" onclick="logout()" class="inline-flex items-center gap-2 px-4 py-2 bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i><span>Выйти из аккаунта</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ПОСЕЩАЕМОСТИ И СОСТАВА ГРУППЫ НА ПАРЕ -->
+    <div id="modal-lesson-attendance" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-start border-b pb-3">
+                <div>
+                    <h3 id="att-lesson-title" class="font-bold text-base"></h3>
+                    <p id="att-lesson-sub" class="text-xs text-slate-500 mt-0.5"></p>
+                </div>
+                <button onclick="document.getElementById('modal-lesson-attendance').classList.add('hidden')" class="p-1 text-slate-400 hover:text-slate-700">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="att-students-list" class="max-h-80 overflow-y-auto divide-y"></div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО 3D-ТРЕНАЖЕРА КАРТОЧЕК -->
+    <div id="modal-trainer" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 id="trainer-deck-title" class="font-bold text-base truncate"></h3>
+                <button onclick="closeTrainer()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div id="trainer-progress-bar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500">
+                <span id="trainer-stats">Изучено: 0 из 0</span>
+                <span>Кликните по карточке для переворота</span>
+            </div>
+            <div id="trainer-card-box" onclick="this.classList.toggle('flipped')" class="flip-card">
+                <div class="flip-inner">
+                    <div class="flip-front bg-slate-50 border-2 border-slate-200">
+                        <span class="text-[11px] uppercase tracking-wider text-slate-400 mb-2">Вопрос</span>
+                        <div id="trainer-front-text" class="text-lg font-bold"></div>
+                    </div>
+                    <div class="flip-back bg-indigo-50 border-2 border-indigo-300">
+                        <span class="text-[11px] uppercase tracking-wider text-indigo-500 mb-2">Ответ</span>
+                        <div id="trainer-back-text" class="text-base font-medium"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="trainer-controls" class="grid grid-cols-2 gap-3 pt-2">
+                <button onclick="markCardUnknown()" class="py-2.5 bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs">Не понял (в конец)</button>
+                <button onclick="markCardKnown()" class="py-2.5 bg-emerald-600 text-white font-semibold rounded-xl text-xs">Понял (убрать)</button>
+            </div>
+        </div>
     </div>
     <script>
         const API_URL = "http://127.0.0.1:8000/api";
@@ -255,6 +704,8 @@
         let currentUser = null;
         let allGroups = [];
         let activeTest = null;
+        let prevSummary = null;
+        let cachedAuditLogs = [];
 
         const ROLE_NAMES = {
             guest: "Гость (Не подтвержден)",
@@ -264,156 +715,132 @@
             admin: "Администратор"
         };
 
-                // --- ПРЕФИКСНОЕ ДЕРЕВО (TRIE) ДЛЯ ПОИСКА ---
-        class PrefixTree {
-            constructor() {
-                this.root = { children: {}, users: [] };
+        const SECTION_TITLES = {
+            dashboard: "Главная и новости",
+            schedule: "Расписание занятий",
+            exams: "Сессия и зачеты",
+            decks: "Умные карточки",
+            tests: "Тестирование",
+            tickets: "Обращения",
+            faq: "Справка (FAQ)",
+            deanery: "Деканат и управление ролями",
+            audit: "Журнал безопасности и аудита"
+        };
+
+                // --- УМНЫЕ ПАЛИТРЫ (СВЕТЛАЯ + ТЁМНАЯ ДЛЯ КАЖДОГО ЦВЕТА) ---
+        const THEME_PALETTES = {
+            blue: {
+                light: { "--accent": "#2563eb", "--accent-hover": "#1d4ed8", "--bg-main": "#f4f6fb", "--bg-card": "#ffffff", "--text-main": "#0f172a", "--text-muted": "#64748b", "--border-color": "#e2e8f0" },
+                dark:  { "--accent": "#3b82f6", "--accent-hover": "#2563eb", "--bg-main": "#090d16", "--bg-card": "#121826", "--text-main": "#f8fafc", "--text-muted": "#94a3b8", "--border-color": "#1e293b" }
+            },
+            indigo: {
+                light: { "--accent": "#7c3aed", "--accent-hover": "#6d28d9", "--bg-main": "#f6f5ff", "--bg-card": "#ffffff", "--text-main": "#1e1b4b", "--text-muted": "#6b7280", "--border-color": "#e5e7eb" },
+                dark:  { "--accent": "#8b5cf6", "--accent-hover": "#7c3aed", "--bg-main": "#0d0a1a", "--bg-card": "#17122b", "--text-main": "#f5f3ff", "--text-muted": "#a5b4fc", "--border-color": "#261f47" }
+            },
+            emerald: {
+                light: { "--accent": "#059669", "--accent-hover": "#047857", "--bg-main": "#f2fbf7", "--bg-card": "#ffffff", "--text-main": "#064e3b", "--text-muted": "#4b5563", "--border-color": "#d1fae5" },
+                dark:  { "--accent": "#10b981", "--accent-hover": "#059669", "--bg-main": "#07120e", "--bg-card": "#0e1f19", "--text-main": "#ecfdf5", "--text-muted": "#6ee7b7", "--border-color": "#19362c" }
+            },
+            rose: {
+                light: { "--accent": "#e11d48", "--accent-hover": "#be123c", "--bg-main": "#fff5f7", "--bg-card": "#ffffff", "--text-main": "#4c0519", "--text-muted": "#6b7280", "--border-color": "#ffe4e6" },
+                dark:  { "--accent": "#f43f5e", "--accent-hover": "#e11d48", "--bg-main": "#14080c", "--bg-card": "#210e15", "--text-main": "#fff1f2", "--text-muted": "#fda4af", "--border-color": "#3b1723" }
             }
+        };
 
-            // Добавляем пользователя в дерево по каждому слову из ФИО и по email
-            insert(user) {
-                const tokens = `${user.full_name} ${user.email}`
-                    .toLowerCase()
-                    .split(/[\s@._-]+/)
-                    .filter(Boolean);
+        function applyCurrentPalette() {
+            const paletteKey = localStorage.getItem("portal_palette") || "blue";
+            const isDark = localStorage.getItem("portal_dark") === "1";
+            document.body.classList.toggle("dark", isDark);
 
-                for (const word of tokens) {
-                    let node = this.root;
-                    for (const char of word) {
-                        if (!node.children[char]) {
-                            node.children[char] = { children: {}, users: [] };
-                        }
-                        node = node.children[char];
-                    }
-                    if (!node.users.some(u => u.id === user.id)) {
-                        node.users.push(user);
-                    }
-                }
+            const vars = THEME_PALETTES[paletteKey][isDark ? "dark" : "light"];
+            for (const [k, v] of Object.entries(vars)) {
+                document.documentElement.style.setProperty(k, v);
             }
-
-            // Ищем первые 5 совпадений по введенному префиксу
-            searchTop5(prefix) {
-                const clean = prefix.trim().toLowerCase();
-                if (!clean) return [];
-
-                let node = this.root;
-                for (const char of clean) {
-                    if (!node.children[char]) return [];
-                    node = node.children[char];
-                }
-
-                const results = [];
-                const seenIds = new Set();
-
-                const collect = (currNode) => {
-                    if (results.length >= 5) return;
-                    for (const u of currNode.users) {
-                        if (!seenIds.has(u.id)) {
-                            seenIds.add(u.id);
-                            results.push(u);
-                            if (results.length >= 5) return;
-                        }
-                    }
-                    for (const key of Object.keys(currNode.children)) {
-                        collect(currNode.children[key]);
-                        if (results.length >= 5) return;
-                    }
-                };
-
-                collect(node);
-                return results;
-            }
+            const btn = document.getElementById("theme-btn");
+            if (btn) btn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-4 h-4"></i>`;
+            if (window.lucide) lucide.createIcons();
         }
 
-        let userTrie = new PrefixTree();
-        let cachedUsers = [];
-        let cachedGroups = [];
-
-        const LOCAL_AVATARS = [
-            "assets/avatar1.png",
-            "assets/avatar2.png",
-            "assets/avatar3.png"
-        ];
-        
-        function getAvatarById(userId) {
-            return LOCAL_AVATARS[userId % LOCAL_AVATARS.length];
+        function selectThemePalette(key) {
+            localStorage.setItem("portal_palette", key);
+            applyCurrentPalette();
         }
 
-        function resolveAvatar(user) {
-            return user.avatar_url ? user.avatar_url : getAvatarById(user.id);
+        function toggleDarkTheme() {
+            const nextDark = localStorage.getItem("portal_dark") !== "1";
+            localStorage.setItem("portal_dark", nextDark ? "1" : "0");
+            applyCurrentPalette();
         }
 
-        function compressImageFile(file, maxWidth = 300, quality = 0.8) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const scale = Math.min(1, maxWidth / img.width);
-                        const canvas = document.createElement("canvas");
-                        canvas.width = img.width * scale;
-                        canvas.height = img.height * scale;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL("image/jpeg", quality));
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
+        applyCurrentPalette();
 
-        async function uploadMyAvatar(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const compressedBase64 = await compressImageFile(file, 250, 0.8);
-            const token = localStorage.getItem("portal_token");
+        // --- ЛИЧНЫЙ КАБИНЕТ (ПРОФИЛЬ + СТАТИСТИКА) ---
+        async function openProfileModal() {
+            document.getElementById("modal-avatar").src = resolveAvatar(currentUser);
+            document.getElementById("modal-fullname").textContent = currentUser.full_name;
+            document.getElementById("modal-email").textContent = currentUser.email;
+            const grp = currentUser.group_name ? ` • ${currentUser.group_name}` : "";
+            document.getElementById("modal-role-group").textContent = `${ROLE_NAMES[currentUser.role]}${grp}`;
+            document.getElementById("stat-id").textContent = `#${currentUser.id}`;
 
-            const res = await fetch(`${API_URL}/users/avatar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ avatar_url: compressedBase64 })
-            });
-
+            const res = await fetch(`${API_URL}/tests`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
             if (res.ok) {
-                currentUser.avatar_url = compressedBase64;
-                document.getElementById("header-avatar").src = compressedBase64;
-                alert("Аватар обновлен!");
+                const tests = await res.json();
+                const completed = tests.filter(t => t.score !== null && t.score !== undefined);
+                document.getElementById("stat-tests-done").textContent = completed.length;
+                if (completed.length > 0) {
+                    const avgPct = Math.round(completed.reduce((acc, t) => acc + (t.score / t.max_score) * 100, 0) / completed.length);
+                    document.getElementById("stat-avg-score").textContent = `${avgPct}%`;
+                } else {
+                    document.getElementById("stat-avg-score").textContent = "—";
+                }
             }
+            const absBox = document.getElementById("student-absences-box");
+            if (currentUser.role === "student") {
+                absBox.classList.remove("hidden");
+                const absRes = await fetch(`${API_URL}/my-absences`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+                if (absRes.ok) {
+                    const abs = await absRes.json();
+                    document.getElementById("absences-total-badge").textContent = `${abs.total_unexcused} неув. / ${abs.total_excused} уваж.`;
+                    document.getElementById("absences-subject-list").innerHTML = abs.by_subject.length ? abs.by_subject.map(s => `
+                        <div class="flex justify-between items-center p-2 bg-slate-50 rounded-lg border">
+                            <span class="font-medium truncate pr-2">${s.subject}</span>
+                            <span class="font-mono font-bold text-rose-600 shrink-0">${s.unexcused} н (${s.excused} ув.)</span>
+                        </div>
+                    `).join('') : '<div class="text-slate-400 text-center py-2">Пропусков нет 🎉</div>';
+                }
+            } else {
+                absBox.classList.add("hidden");
+            }
+
+            document.getElementById("modal-profile").classList.remove("hidden");
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("-translate-x-[110%]");
         }
 
 
-        // --- АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ ---
+        // --- АВТОРИЗАЦИЯ И НАВИГАЦИЯ ---
         function setAuthTab(mode) {
             authMode = mode;
             document.getElementById("auth-error").classList.add("hidden");
             document.getElementById("field-fullname").classList.toggle("hidden", mode === "login");
             document.getElementById("input-fullname").required = (mode === "register");
-            document.getElementById("auth-submit-btn").textContent = mode === "login"
-                ? "Войти в систему"
-                : "Подать заявку на регистрацию";
-
-            document.getElementById("tab-login").className = mode === "login"
-                ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition"
-                : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition";
-
-            document.getElementById("tab-register").className = mode === "register"
-                ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900 transition"
-                : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500 transition";
+            document.getElementById("auth-submit-btn").textContent = mode === "login" ? "Войти в систему" : "Подать заявку на регистрацию";
+            document.getElementById("tab-login").className = mode === "login" ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900" : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500";
+            document.getElementById("tab-register").className = mode === "register" ? "flex-1 py-2 text-sm font-semibold rounded-lg bg-white shadow text-slate-900" : "flex-1 py-2 text-sm font-semibold rounded-lg text-slate-500";
         }
 
         async function submitAuth(e) {
             e.preventDefault();
             const errBox = document.getElementById("auth-error");
             errBox.classList.add("hidden");
-
             const email = document.getElementById("input-email").value.trim();
             const password = document.getElementById("input-password").value;
             const full_name = document.getElementById("input-fullname").value.trim();
-
-            const payload = authMode === "login"
-                ? { email, password }
-                : { full_name, email, password };
+            const payload = authMode === "login" ? { email, password } : { full_name, email, password };
 
             try {
                 const res = await fetch(`${API_URL}/${authMode}`, {
@@ -422,13 +849,11 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-
                 if (!res.ok) {
                     errBox.textContent = data.detail || "Ошибка авторизации";
                     errBox.classList.remove("hidden");
                     return;
                 }
-
                 if (authMode === "register") {
                     localStorage.setItem("portal_token", data.token);
                     await checkStatus();
@@ -440,17 +865,13 @@
                     renderUserState(data.user);
                 }
             } catch (err) {
-                errBox.textContent = "Сервер недоступен. Проверьте запуск FastAPI.";
+                errBox.textContent = "Сервер недоступен.";
                 errBox.classList.remove("hidden");
             }
         }
 
         function confirm2FA() {
-            const code = document.getElementById("input-2fa").value.trim();
-            if (code.length !== 6) {
-                alert("Введите 6-значный код (например, 123456)");
-                return;
-            }
+            if (document.getElementById("input-2fa").value.trim().length !== 6) return alert("Введите 6-значный код");
             document.getElementById("modal-2fa").classList.add("hidden");
             document.getElementById("input-2fa").value = "";
             localStorage.setItem("portal_token", pendingUser.api_token);
@@ -460,469 +881,717 @@
         async function checkStatus() {
             const token = localStorage.getItem("portal_token");
             if (!token) return;
-            const res = await fetch(`${API_URL}/me`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (res.ok) {
-                renderUserState(await res.json());
-            } else {
-                logout();
-            }
+            const res = await fetch(`${API_URL}/me`, { headers: { "Authorization": `Bearer ${token}` } });
+            if (res.ok) renderUserState(await res.json());
+            else logout();
         }
 
         function renderUserState(user) {
             currentUser = user;
             document.getElementById("auth-screen").classList.add("hidden");
-
             if (user.role === "guest") {
                 document.getElementById("app-screen").classList.add("hidden");
                 document.getElementById("guest-screen").classList.remove("hidden");
                 document.getElementById("guest-id").textContent = `#${user.id}`;
                 document.getElementById("guest-name").textContent = user.full_name;
+                if (window.lucide) lucide.createIcons();
                 return;
             }
-
             document.getElementById("guest-screen").classList.add("hidden");
             document.getElementById("app-screen").classList.remove("hidden");
             document.getElementById("header-name").textContent = user.full_name;
             document.getElementById("header-avatar").src = resolveAvatar(user);
-            const groupLabel = user.group_name ? ` • Группа ${user.group_name}` : "";
-            document.getElementById("header-role").textContent = `${ROLE_NAMES[user.role]}${groupLabel}`;
+            const grp = user.group_name ? ` • ${user.group_name}` : "";
+            document.getElementById("header-role").textContent = `${ROLE_NAMES[user.role]}${grp}`;
 
             const isStaff = ["deanery", "admin"].includes(user.role);
             const isTeacher = ["teacher", "admin"].includes(user.role);
 
-            document.getElementById("nav-deanery").classList.toggle("hidden", !isStaff);
+            // Скрытие вкладок и кнопок управления по ролям
+            document.getElementById("staff-nav-group").classList.toggle("hidden", !isStaff);
             document.getElementById("news-create-box").classList.toggle("hidden", !isStaff);
-            document.getElementById("test-creator-box").classList.toggle("hidden", !isTeacher);
-            document.getElementById("ticket-create-box").classList.toggle("hidden", !["student", "deanery", "admin"].includes(user.role));
+            document.getElementById("btn-open-copy").classList.toggle("hidden", !isStaff);
+            document.getElementById("btn-open-exam-form").classList.toggle("hidden", !["teacher", "deanery", "admin"].includes(user.role));
+            document.getElementById("btn-open-test-form").classList.toggle("hidden", !isTeacher);
 
-
+            initNotifications();
             if (isStaff) loadUsersList();
-            else document.getElementById("users-table-body").innerHTML = "";
-
             openSection("dashboard");
         }
 
         function openSection(secId) {
             document.querySelectorAll("main section").forEach(el => el.classList.add("hidden"));
             document.getElementById(`sec-${secId}`).classList.remove("hidden");
+            document.getElementById("page-heading").textContent = SECTION_TITLES[secId] || "Портал ВУЗа";
+            document.getElementById("sidebar").classList.add("-translate-x-full");
 
             document.querySelectorAll(".nav-btn").forEach(btn => {
-                const active = btn.dataset.sec === secId;
-                btn.classList.toggle("border-indigo-600", active);
-                btn.classList.toggle("text-indigo-600", active);
-                btn.classList.toggle("border-transparent", !active);
-                btn.classList.toggle("text-slate-500", !active);
+                btn.classList.toggle("active", btn.dataset.sec === secId);
             });
 
             if (secId === "dashboard") { loadNews(); loadTeachers(); }
-            if (secId === "schedule") loadSchedule();
+            if (secId === "schedule") { loadTeachers().then(() => loadSchedule()); }
+            if (secId === "exams") { loadTeachers().then(() => loadExams()); }
+            if (secId === "decks") loadDecks();
             if (secId === "tests") { loadTeachers(); loadTests(); }
             if (secId === "tickets") { loadTeachers(); loadTickets(); }
             if (secId === "deanery") loadUsersList();
+            if (secId === "audit") loadAuditLogs();
+            if (window.lucide) lucide.createIcons();
         }
-                // --- НОВОСТИ И ПРЕПОДАВАТЕЛИ ---
-        async function loadNews() {
-            const token = localStorage.getItem("portal_token");
-            const res = await fetch(`${API_URL}/news`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            const news = await res.json();
 
-            document.getElementById("news-list").innerHTML = news.map(n => `
-                <article class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        // --- УВЕДОМЛЕНИЯ И ПРЕФИКСНОЕ ДЕРЕВО (TRIE) ---
+        function initNotifications() {
+            if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+            pollNotifications();
+            setInterval(pollNotifications, 15000);
+        }
+
+        async function pollNotifications() {
+            const token = localStorage.getItem("portal_token");
+            if (!token || !currentUser || currentUser.role === "guest") return;
+            try {
+                const res = await fetch(`${API_URL}/notifications/summary`, { headers: { "Authorization": `Bearer ${token}` } });
+                if (!res.ok) return;
+                const data = await res.json();
+                const bTickets = document.getElementById("badge-tickets");
+                bTickets.textContent = data.tickets_count;
+                bTickets.classList.toggle("hidden", data.tickets_count === 0);
+                const bGuests = document.getElementById("badge-guests");
+                bGuests.textContent = data.guests_count;
+                bGuests.classList.toggle("hidden", data.guests_count === 0);
+                document.getElementById("badge-schedule").classList.toggle("hidden", data.changed_lessons === 0);
+                prevSummary = data;
+            } catch (e) {}
+        }
+
+        class PrefixTree {
+            constructor() { this.root = { children: {}, items: [] }; }
+            insert(item, text) {
+                for (const w of text.toLowerCase().split(/[\s@._,-]+/).filter(Boolean)) {
+                    let node = this.root;
+                    for (const ch of w) {
+                        if (!node.children[ch]) node.children[ch] = { children: {}, items: [] };
+                        node = node.children[ch];
+                    }
+                    if (!node.items.some(x => x.id === item.id)) node.items.push(item);
+                }
+            }
+            searchByPrefix(prefix, limit = 10) {
+                const clean = prefix.trim().toLowerCase();
+                if (!clean) return [];
+                let node = this.root;
+                for (const ch of clean) {
+                    if (!node.children[ch]) return [];
+                    node = node.children[ch];
+                }
+                const res = [], seen = new Set();
+                const collect = (c) => {
+                    if (res.length >= limit) return;
+                    for (const it of c.items) {
+                        if (!seen.has(it.id)) { seen.add(it.id); res.push(it); if (res.length >= limit) return; }
+                    }
+                    for (const k of Object.keys(c.children)) collect(c.children[k]);
+                };
+                collect(node);
+                return res;
+            }
+        }
+
+        let userTrie = new PrefixTree(), cachedUsers = [], cachedGroups = [];
+        const LOCAL_AVATARS = ["assets/avatar1.png", "assets/avatar2.png", "assets/avatar3.png"];
+        const resolveAvatar = (u) => u.avatar_url ? u.avatar_url : LOCAL_AVATARS[u.id % LOCAL_AVATARS.length];
+
+        function compressImageFile(file, maxWidth = 300, quality = 0.8) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const scale = Math.min(1, maxWidth / img.width);
+                        const canvas = document.createElement("canvas");
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL("image/jpeg", quality));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadMyAvatar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const compressed = await compressImageFile(file, 250, 0.8);
+            const res = await fetch(`${API_URL}/users/avatar`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ avatar_url: compressed })
+            });
+            if (res.ok) {
+                currentUser.avatar_url = compressed;
+                document.getElementById("header-avatar").src = compressed;
+                document.getElementById("modal-avatar").src = compressed;
+                alert("Фото профиля обновлено!");
+            }
+        }
+        // --- НОВОСТИ И ПРЕПОДАВАТЕЛИ ---
+        async function loadNews() {
+            const res = await fetch(`${API_URL}/news`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+            const news = await res.json();
+            document.getElementById("news-list").innerHTML = news.length ? news.map(n => `
+                <article class="bg-white p-5 rounded-2xl border border-slate-200">
                     <div class="flex items-center justify-between mb-2">
                         <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">${n.tag}</span>
                         <span class="text-xs text-slate-400">${n.date} • ${n.author_name || 'Портал'}</span>
                     </div>
-                    <h3 class="font-bold text-slate-900 text-base">${n.title}</h3>
+                    <h3 class="font-bold text-base">${n.title}</h3>
                     <p class="text-sm text-slate-600 mt-1.5 whitespace-pre-line">${n.content}</p>
-                    ${n.image_url ? `<img src="${n.image_url}" class="mt-3 w-full max-h-72 object-cover rounded-xl border border-slate-100">` : ''}
+                    ${n.image_url ? `<img src="${n.image_url}" class="mt-3 w-full max-h-72 object-cover rounded-xl border">` : ''}
                 </article>
-            `).join('');
+            `).join('') : '<div class="bg-white p-6 rounded-2xl border text-sm text-slate-400 text-center">Пока нет опубликованных новостей</div>';
         }
 
         async function publishNews(e) {
             e.preventDefault();
-            const token = localStorage.getItem("portal_token");
-            const title = document.getElementById("news-title").value.trim();
-            const content = document.getElementById("news-content").value.trim();
-            const tag = document.getElementById("news-tag").value;
             const fileInput = document.getElementById("news-image-input");
-
-            let image_url = null;
-            if (fileInput && fileInput.files.length > 0) {
-                image_url = await compressImageFile(fileInput.files[0], 800, 0.8);
-            }
-
+            let image_url = fileInput && fileInput.files.length > 0 ? await compressImageFile(fileInput.files[0], 800, 0.8) : null;
             await fetch(`${API_URL}/news`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ title, content, tag, image_url })
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({
+                    title: document.getElementById("news-title").value.trim(),
+                    content: document.getElementById("news-content").value.trim(),
+                    tag: document.getElementById("news-tag").value,
+                    image_url
+                })
             });
-
             document.getElementById("news-title").value = "";
             document.getElementById("news-content").value = "";
             if (fileInput) fileInput.value = "";
             loadNews();
         }
 
-
         async function loadTeachers() {
-            const token = localStorage.getItem("portal_token");
-            const res = await fetch(`${API_URL}/teachers`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetch(`${API_URL}/teachers`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
             const data = await res.json();
             allGroups = data.groups;
-
-            document.getElementById("test-group-select").innerHTML = allGroups
-                .map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-
+            const opts = allGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            ["test-group-select", "copy-src-group", "copy-dst-group", "exam-group", "exams-group-select"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = opts;
+            });
             document.getElementById("ticket-recipient").innerHTML = `<option value="deanery">В Деканат</option>` +
                 data.teachers.map(t => `<option value="${t.id}">Преподаватель: ${t.full_name}</option>`).join('');
-
-            const container = document.getElementById("teachers-list");
-            if (!data.teachers.length) {
-                container.innerHTML = `<div class="bg-white p-4 rounded-2xl text-sm text-slate-400 border border-slate-200">Преподаватели пока не назначены</div>`;
-                return;
-            }
-
-            container.innerHTML = data.teachers.map(t => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
-                    <img src="${resolveAvatar(t)}" alt="Аватар" class="w-11 h-11 rounded-full object-cover border border-slate-200">
+            document.getElementById("teachers-list").innerHTML = data.teachers.length ? data.teachers.map(t => `
+                <div class="p-3 bg-slate-50 rounded-xl border flex items-center gap-3">
+                    <img src="${resolveAvatar(t)}" class="w-10 h-10 rounded-xl object-cover border">
                     <div class="flex-1 min-w-0">
-                        <div class="font-semibold text-sm text-slate-900 truncate">${t.full_name}</div>
-                        <div class="text-xs text-slate-400 truncate">${t.email}</div>
+                        <div class="font-semibold text-xs truncate">${t.full_name}</div>
+                        <div class="text-[11px] text-slate-400 truncate">${t.email}</div>
                     </div>
-                    ${currentUser.role === 'student' ? `<button onclick="askTeacher(${t.id})" class="px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold">Вопрос</button>` : ''}
+                    ${currentUser.role === 'student' ? `<button onclick="openSection('tickets');document.getElementById('ticket-recipient').value=${t.id}" class="px-2.5 py-1 bg-white border rounded-lg text-[11px] font-semibold text-accent">Вопрос</button>` : ''}
                 </div>
-            `).join('');
+            `).join('') : '<div class="text-xs text-slate-400">Преподаватели пока не назначены</div>';
         }
 
-        function askTeacher(teacherId) {
-            openSection('tickets');
-            document.getElementById("ticket-recipient").value = teacherId;
-        }
-
-        // --- РАСПИСАНИЕ ---
+        // --- РАСПИСАНИЕ И СЕССИЯ ---
         async function loadSchedule(groupId = null) {
-            const token = localStorage.getItem("portal_token");
             const url = groupId ? `${API_URL}/schedule?group_id=${groupId}` : `${API_URL}/schedule`;
-            const res = await fetch(url, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetch(url, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
             const data = await res.json();
-
-            const sel = document.getElementById("schedule-group-select");
-            sel.innerHTML = data.groups
-                .map(g => `<option value="${g.id}" ${g.id == data.selected_group ? 'selected' : ''}>Группа ${g.name}</option>`).join('');
-
+            document.getElementById("schedule-group-select").innerHTML = data.groups.map(g => `<option value="${g.id}" ${g.id == data.selected_group ? 'selected' : ''}>Группа ${g.name}</option>`).join('');
+            const isStaff = ["deanery", "admin"].includes(currentUser.role);
             const days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
             document.getElementById("schedule-grid").innerHTML = days.map(day => {
-                const dayLessons = data.lessons.filter(l => l.day_of_week === day);
+                const list = data.lessons.filter(l => l.day_of_week === day);
                 return `
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-900 border-b border-slate-100 pb-2 mb-3">${day}</h3>
-                        ${dayLessons.length ? dayLessons.map(l => `
-                            <div class="py-2.5 border-b last:border-0 border-slate-100 flex justify-between items-start gap-2">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                        <h3 class="font-bold text-sm border-b pb-2 mb-2.5">${day}</h3>
+                        ${list.length ? list.map(l => `
+                            <div class="py-2 px-2.5 mb-1.5 rounded-xl border text-xs flex justify-between items-start gap-2 ${l.is_changed ? 'bg-amber-50/70 border-amber-300' : 'border-slate-100'}">
                                 <div>
-                                    <div class="text-xs font-mono text-indigo-600 font-semibold">${l.time_slot} • ${l.lesson_type}</div>
-                                    <div class="font-semibold text-sm text-slate-900 mt-0.5">${l.subject}</div>
-                                    <div class="text-xs text-slate-500 mt-0.5">${l.teacher_name}</div>
+                                    <div class="font-mono text-accent font-semibold">${l.start_fmt}–${l.end_fmt} • ${l.lesson_type}</div>
+                                    <div class="font-bold text-sm mt-0.5 ${l.lesson_type === 'Отменена' ? 'line-through text-rose-600' : ''}">${l.subject}</div>
+                                    <div class="text-slate-500 mt-0.5">${l.teacher_name}</div>
                                 </div>
-                                <span class="px-2 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-mono whitespace-nowrap">${l.room}</span>
+                                <div class="flex flex-col items-end gap-1 shrink-0">
+                                    <span class="px-2 py-0.5 bg-slate-100 rounded-lg font-mono">ауд. ${l.room} (к.${l.corp})</span>
+                                    <button onclick="openLessonAttendance(${l.id})" class="px-2 py-0.5 bg-indigo-50 text-accent rounded font-semibold hover:opacity-80">👥 Группа / Н</button>
+                                    ${isStaff ? `<button onclick="toggleLessonStatus(${l.id})" class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded font-semibold">Отменить</button>` : ''}
+                                </div>
+
                             </div>
                         `).join('') : '<div class="text-xs text-slate-400 py-4 text-center">Занятий нет</div>'}
                     </div>
                 `;
             }).join('');
         }
+        
+                async function openLessonAttendance(lessonId) {
+            const res = await fetch(`${API_URL}/schedule/${lessonId}/attendance`, {
+                headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            document.getElementById("att-lesson-title").textContent = data.lesson.subject;
+            document.getElementById("att-lesson-sub").textContent = `${data.lesson.day_of_week}, ${data.lesson.start_fmt} • Состав группы и посещаемость`;
 
-        // --- ТЕСТИРОВАНИЕ ---
+            const canEdit = ["deanery", "teacher", "admin"].includes(currentUser.role);
+            const statusLabels = {
+                present: '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-lg font-semibold">Был</span>',
+                absent: '<span class="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-lg font-semibold">Пропуск (Н)</span>',
+                excused: '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-lg font-semibold">Уважит.</span>'
+            };
+
+            document.getElementById("att-students-list").innerHTML = data.students.length ? data.students.map(st => `
+                <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <img src="${resolveAvatar(st)}" class="w-8 h-8 rounded-lg object-cover border">
+                        <span class="font-semibold ${st.id === currentUser.id ? 'text-accent' : ''}">${st.full_name} ${st.id === currentUser.id ? '(Вы)' : ''}</span>
+                    </div>
+                    ${canEdit ? `
+                        <select onchange="saveStudentAttendance(${lessonId}, ${st.id}, this.value)" class="border rounded-lg px-2 py-1 text-xs font-semibold">
+                            <option value="present" ${st.status === 'present' ? 'selected' : ''}>✅ Присутствует</option>
+                            <option value="absent" ${st.status === 'absent' ? 'selected' : ''}>❌ Пропуск (Н)</option>
+                            <option value="excused" ${st.status === 'excused' ? 'selected' : ''}>📄 Уважительная</option>
+                        </select>
+                    ` : statusLabels[st.status]}
+                </div>
+            `).join('') : '<div class="py-6 text-center text-xs text-slate-400">В этой группе пока нет подтвержденных студентов</div>';
+
+            document.getElementById("modal-lesson-attendance").classList.remove("hidden");
+        }
+
+        async function saveStudentAttendance(lessonId, studentId, status) {
+            await fetch(`${API_URL}/attendance`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ lesson_id: lessonId, student_id: studentId, status })
+            });
+        }
+
+        async function toggleLessonStatus(id) {
+            await fetch(`${API_URL}/schedule/${id}/toggle-change`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ cancel: true })
+            });
+            loadSchedule(document.getElementById("schedule-group-select").value);
+        }
+
+        async function submitCopySchedule(e) {
+            e.preventDefault();
+            const payload = {
+                source_group_id: parseInt(document.getElementById("copy-src-group").value),
+                target_group_id: parseInt(document.getElementById("copy-dst-group").value),
+                source_day: document.getElementById("copy-src-day").value,
+                target_day: document.getElementById("copy-dst-day").value || null
+            };
+            const res = await fetch(`${API_URL}/schedule/copy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            alert(`Скопировано пар: ${data.copied}`);
+            loadSchedule(payload.target_group_id);
+        }
+
+        async function submitNewLesson(e) {
+            e.preventDefault();
+            const groupId = parseInt(document.getElementById("schedule-group-select").value);
+            const start = document.getElementById("new-lesson-start").value;
+            const end = document.getElementById("new-lesson-end").value;
+            const payload = {
+                group_id: groupId,
+                day_of_week: document.getElementById("new-lesson-day").value,
+                time_start: `2026-11-09 ${start}:00`,
+                time_end: `2026-11-09 ${end}:00`,
+                subject: document.getElementById("new-lesson-subj").value.trim(),
+                room: document.getElementById("new-lesson-room").value.trim(),
+                corp: document.getElementById("new-lesson-corp").value.trim(),
+                teacher_name: document.getElementById("new-lesson-teacher").value.trim(),
+                lesson_type: "Лекция"
+            };
+            const res = await fetch(`${API_URL}/schedule`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                document.getElementById("new-lesson-subj").value = "";
+                loadSchedule(groupId);
+            } else {
+                const err = await res.json();
+                alert("Ошибка: " + (err.detail || "не удалось добавить пару"));
+            }
+        }
+
+        async function loadExams(groupId = null) {
+            const gid = groupId || document.getElementById("exams-group-select").value;
+            const url = gid ? `${API_URL}/exams?group_id=${gid}` : `${API_URL}/exams`;
+            const res = await fetch(url, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+            const exams = await res.json();
+            document.getElementById("exams-list").innerHTML = exams.length ? exams.map(ex => `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg font-semibold">${ex.course} курс • ${ex.academic_year}</span>
+                        <span class="font-mono font-bold text-rose-600">${ex.exam_date}</span>
+                    </div>
+                    <h4 class="font-bold text-base">${ex.subject}</h4>
+                    <div class="text-xs text-slate-500">Преподаватель: ${ex.teacher_name} • Ауд. ${ex.room}</div>
+                    ${ex.doc_name ? `<button onclick="downloadExamDoc(${ex.id}, '${ex.doc_name}')" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 border rounded-xl text-xs font-semibold">Скачать требования (${ex.doc_name})</button>` : ''}
+                </div>
+            `).join('') : '<div class="text-sm text-slate-400">Расписание сессии пока не опубликовано.</div>';
+        }
+
+        async function createExamSession(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById("exam-doc-file");
+            let doc_name = null, doc_data = null;
+            if (fileInput.files.length > 0) {
+                const f = fileInput.files[0];
+                doc_name = f.name;
+                doc_data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+            }
+            const payload = {
+                group_id: parseInt(document.getElementById("exam-group").value),
+                course: parseInt(document.getElementById("exam-course").value),
+                academic_year: document.getElementById("exam-year").value.trim(),
+                subject: document.getElementById("exam-subject").value.trim(),
+                exam_date: document.getElementById("exam-date").value,
+                room: document.getElementById("exam-room").value.trim(),
+                doc_name, doc_data
+            };
+            await fetch(`${API_URL}/exams`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify(payload)
+            });
+            document.getElementById("exam-creator-box").classList.add("hidden");
+            loadExams(payload.group_id);
+        }
+
+        async function downloadExamDoc(id, name) {
+            const res = await fetch(`${API_URL}/exams/${id}/doc`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+            if (!res.ok) return alert("Файл не прикреплен");
+            const data = await res.json();
+            const a = document.createElement("a"); a.href = data.doc_data; a.download = name; a.click();
+        }
+
+        // --- КАРТОЧКИ (FLASHCARDS + TRIE + 3D-ТРЕНАЖЕР) ---
+        let deckTrie = new PrefixTree(), allDecks = [], trainerQueue = [], trainerTotal = 0;
+
+        function addDeckCardRow() {
+            const div = document.createElement("div");
+            div.className = "grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-xl border deck-card-row";
+            div.innerHTML = `<input type="text" required placeholder="Вопрос" class="c-front px-3 py-1.5 border rounded-lg text-xs"><input type="text" required placeholder="Ответ" class="c-back px-3 py-1.5 border rounded-lg text-xs">`;
+            document.getElementById("deck-cards-container").appendChild(div);
+        }
+
+        async function createDeck(e) {
+            e.preventDefault();
+            const rows = document.querySelectorAll(".deck-card-row");
+            if (!rows.length) return alert("Добавьте хотя бы одну карточку");
+            const cards = Array.from(rows).map(r => ({ front: r.querySelector(".c-front").value.trim(), back: r.querySelector(".c-back").value.trim() }));
+            await fetch(`${API_URL}/decks`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ title: document.getElementById("deck-title").value.trim(), tags: document.getElementById("deck-tags").value.trim(), cards })
+            });
+            document.getElementById("deck-cards-container").innerHTML = "";
+            document.getElementById("deck-creator-box").classList.add("hidden");
+            loadDecks();
+        }
+
+        async function loadDecks() {
+            const res = await fetch(`${API_URL}/decks`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+            allDecks = await res.json();
+            deckTrie = new PrefixTree();
+            allDecks.forEach(d => deckTrie.insert(d, `${d.title} ${d.tags} ${d.author_name}`));
+            renderDecks(allDecks);
+        }
+
+        function handleDeckSearch(q) {
+            const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            if (!words.length) return renderDecks(allDecks);
+            let matched = deckTrie.searchByPrefix(words[0], 50);
+            for (let i = 1; i < words.length; i++) {
+                const next = new Set(deckTrie.searchByPrefix(words[i], 50).map(d => d.id));
+                matched = matched.filter(d => next.has(d.id));
+            }
+            renderDecks(matched);
+        }
+
+        function renderDecks(list) {
+            document.getElementById("decks-list").innerHTML = list.map(d => `
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1"><span>${d.author_name}</span><span>${d.cards.length} карт.</span></div>
+                        <h3 class="font-bold text-sm">${d.title}</h3>
+                        <p class="text-xs text-accent mt-1">#${d.tags.split(' ').join(' #')}</p>
+                    </div>
+                    <button onclick="openTrainer(${d.id})" class="mt-4 w-full py-2 bg-accent text-xs font-semibold rounded-xl">Учить карточки</button>
+                </div>
+            `).join('');
+        }
+
+        function openTrainer(id) {
+            const deck = allDecks.find(d => d.id === id);
+            trainerQueue = [...deck.cards]; trainerTotal = deck.cards.length;
+            document.getElementById("trainer-deck-title").textContent = deck.title;
+            document.getElementById("modal-trainer").classList.remove("hidden");
+            renderCurrentFlashcard();
+        }
+
+        function renderCurrentFlashcard() {
+            document.getElementById("trainer-card-box").classList.remove("flipped");
+            const learned = trainerTotal - trainerQueue.length;
+            const pct = Math.round((learned / trainerTotal) * 100);
+            document.getElementById("trainer-progress-bar").style.width = `${pct}%`;
+            document.getElementById("trainer-stats").textContent = `Изучено: ${learned} из ${trainerTotal} (${pct}%)`;
+            if (!trainerQueue.length) {
+                document.getElementById("trainer-front-text").textContent = "Все карточки выучены на 100%!";
+                document.getElementById("trainer-back-text").textContent = "Отличная работа!";
+                document.getElementById("trainer-controls").classList.add("hidden");
+                return;
+            }
+            document.getElementById("trainer-controls").classList.remove("hidden");
+            document.getElementById("trainer-front-text").textContent = trainerQueue[0].front;
+            document.getElementById("trainer-back-text").textContent = trainerQueue[0].back;
+        }
+
+        function markCardUnknown() { trainerQueue.push(trainerQueue.shift()); renderCurrentFlashcard(); }
+        function markCardKnown() { trainerQueue.shift(); renderCurrentFlashcard(); }
+        const closeTrainer = () => document.getElementById("modal-trainer").classList.add("hidden");
+        // --- ТЕСТИРОВАНИЕ И PDF-ВЕДОМОСТЬ ---
         let questionCounter = 0;
         function addQuestionBlock() {
             questionCounter++;
             const id = questionCounter;
             const div = document.createElement("div");
-            div.className = "p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 q-block";
-            div.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-500 uppercase">Вопрос #${id}</span>
-                    <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-xs text-red-500">Удалить</button>
-                </div>
-                <input type="text" required placeholder="Текст вопроса" class="q-text w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    ${[0, 1, 2, 3].map(i => `
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="correct-${id}" value="${i}" ${i === 0 ? 'checked' : ''}>
-                            <input type="text" required placeholder="Вариант ${i + 1}" class="q-opt w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            div.className = "p-4 bg-slate-50 rounded-xl border space-y-2 q-block";
+            div.innerHTML = `<div class="flex justify-between text-xs"><span class="font-bold text-slate-500">Вопрос #${id}</span><button type="button" onclick="this.parentElement.parentElement.remove()" class="text-red-500">Удалить</button></div><input type="text" required placeholder="Текст вопроса" class="q-text w-full px-3 py-2 border rounded-lg text-sm"><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${[0, 1, 2, 3].map(i =>`<div class="flex items-center gap-2"><input type="radio" name="correct-${id}" value="${i}" ${i===0?'checked':''}><input type="text" required placeholder="Вариант ${i+1}" class="q-opt w-full px-2.5 py-1.5 border rounded-lg text-xs"></div>`).join('')}</div>`;
             document.getElementById("test-questions-container").appendChild(div);
         }
+
         async function createTest(e) {
             e.preventDefault();
             const blocks = document.querySelectorAll(".q-block");
-            if (!blocks.length) return alert("Добавьте хотя бы один вопрос");
-
-            const questions = Array.from(blocks).map(b => {
-                const text = b.querySelector(".q-text").value.trim();
-                const options = Array.from(b.querySelectorAll(".q-opt")).map(o => o.value.trim());
-                const correct_index = parseInt(b.querySelector("input[type=radio]:checked").value);
-                return { text, options, correct_index };
-            });
-
-            const token = localStorage.getItem("portal_token");
+            if (!blocks.length) return alert("Добавьте вопрос");
+            const questions = Array.from(blocks).map(b => ({
+                text: b.querySelector(".q-text").value.trim(),
+                options: Array.from(b.querySelectorAll(".q-opt")).map(o => o.value.trim()),
+                correct_index: parseInt(b.querySelector("input[type=radio]:checked").value)
+            }));
             await fetch(`${API_URL}/tests`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({
-                    title: document.getElementById("test-title").value.trim(),
-                    group_id: parseInt(document.getElementById("test-group-select").value),
-                    questions
-                })
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ title: document.getElementById("test-title").value.trim(), group_id: parseInt(document.getElementById("test-group-select").value), questions })
             });
-
-            document.getElementById("test-title").value = "";
-            document.getElementById("test-questions-container").innerHTML = "";
+            document.getElementById("test-creator-box").classList.add("hidden");
             loadTests();
         }
 
         async function loadTests() {
-            const token = localStorage.getItem("portal_token");
-            const res = await fetch(`${API_URL}/tests`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetch(`${API_URL}/tests`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
             const tests = await res.json();
             window._loadedTests = tests;
-
             document.getElementById("tests-list").innerHTML = tests.length ? tests.map(t => `
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-between">
                     <div>
-                        <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
-                            <span>Группа: ${t.group_name}</span>
-                            <span>Вопросов: ${t.questions.length}</span>
-                        </div>
-                        <h3 class="font-bold text-slate-900">${t.title}</h3>
-                        <p class="text-xs text-slate-500 mt-1">Преподаватель: ${t.teacher_name}</p>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1"><span>${t.group_name}</span><span>${t.questions.length} вопр.</span></div>
+                        <h3 class="font-bold text-sm">${t.title}</h3>
+                        <p class="text-xs text-slate-500 mt-1">${t.teacher_name}</p>
                     </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div class="mt-4 pt-3 border-t flex items-center justify-between">
                         ${currentUser.role === 'student'
-                            ? (t.score !== null
-                                ? `<span class="text-sm font-bold text-emerald-600">Результат: ${t.score} из ${t.max_score}</span>`
-                                : `<span class="text-xs text-amber-600 font-medium">Не пройден</span>`)
-                            : `<span class="text-xs text-slate-500">Сдали студентов: <b>${t.submissions}</b></span>`
+                            ? (t.score !== null ? `<span class="text-xs font-bold text-emerald-600">Оценка: ${t.score}/${t.max_score}</span>` : `<span class="text-xs text-amber-600">Не пройден</span>`)
+                            : `<span class="text-xs text-slate-500">Сдали: <b>${t.submissions}</b></span>`
                         }
                         ${currentUser.role === 'student'
-                            ? `<button onclick="startTest(${t.id})" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">${t.score !== null ? 'Пересдать' : 'Начать тест'}</button>`
-                            : ''
+                            ? `<button onclick="startTest(${t.id})" class="px-3.5 py-1.5 bg-accent text-xs font-semibold rounded-xl">${t.score !== null ? 'Пересдать' : 'Начать'}</button>`
+                            : `<button onclick="openTestReport(${t.id})" class="px-3 py-1.5 bg-slate-100 border text-xs font-semibold rounded-xl">Ведомость PDF</button>`
                         }
                     </div>
                 </div>
             `).join('') : '<div class="text-sm text-slate-400">Назначенных тестов пока нет.</div>';
         }
 
-        function startTest(testId) {
-            activeTest = window._loadedTests.find(t => t.id === testId);
-            document.getElementById("test-runner-box").classList.remove("hidden");
-            document.getElementById("runner-title").textContent = activeTest.title;
-            document.getElementById("runner-form").innerHTML = activeTest.questions.map((q, qIdx) => `
-                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <div class="font-semibold text-sm text-slate-900 mb-2">${qIdx + 1}. ${q.text}</div>
-                    <div class="space-y-1.5">
-                        ${q.options.map((opt, oIdx) => `
-                            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                                <input type="radio" name="ans-${qIdx}" value="${oIdx}" required> ${opt}
-                            </label>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('') + `<button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm">Завершить и узнать оценку</button>`;
+        async function openTestReport(id) {
+            const res = await fetch(`${API_URL}/tests/${id}/results`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
+            const data = await res.json();
+            document.getElementById("report-title").textContent = `Ведомость: ${data.title}`;
+            document.getElementById("report-tbody").innerHTML = data.results.length ? data.results.map(r => `<tr><td class="p-2 border">${r.full_name}</td><td class="p-2 border">${r.group_name||'—'}</td><td class="p-2 border font-bold">${r.score}/${r.max_score}</td><td class="p-2 border">${r.date}</td></tr>`).join('') : '<tr><td colspan="4" class="p-3 text-center text-slate-400">Нет сдач</td></tr>';
+            document.getElementById("test-report-box").classList.remove("hidden");
         }
 
-        function closeTestRunner() {
-            document.getElementById("test-runner-box").classList.add("hidden");
-            activeTest = null;
+        function downloadReportPDF() { html2pdf().from(document.getElementById("pdf-printable-area")).save("vedomost.pdf"); }
+
+        function startTest(id) {
+            activeTest = window._loadedTests.find(t => t.id === id);
+            document.getElementById("test-runner-box").classList.remove("hidden");
+            document.getElementById("runner-title").textContent = activeTest.title;
+            document.getElementById("runner-form").innerHTML = activeTest.questions.map((q, qIdx) => `<div class="p-4 bg-slate-50 rounded-xl border"><div class="font-semibold text-sm mb-2">${qIdx + 1}. ${q.text}</div><div class="space-y-1.5">${q.options.map((opt, oIdx) => `<label class="flex items-center gap-2 text-xs cursor-pointer"><input type="radio" name="ans-${qIdx}" value="${oIdx}" required> ${opt}</label>`).join('')}</div></div>`).join('') + `<button type="submit" class="px-5 py-2.5 bg-emerald-600 text-white font-semibold rounded-xl text-xs">Завершить тест</button>`;
         }
+
+        const closeTestRunner = () => { document.getElementById("test-runner-box").classList.add("hidden"); activeTest = null; };
 
         async function submitTestAnswers(e) {
             e.preventDefault();
             const answers = activeTest.questions.map((_, idx) => parseInt(document.querySelector(`input[name="ans-${idx}"]:checked`).value));
-            const token = localStorage.getItem("portal_token");
             const res = await fetch(`${API_URL}/tests/${activeTest.id}/submit`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
                 body: JSON.stringify({ answers })
             });
-            const result = await res.json();
-            alert(`Тест завершен! Ваш результат: ${result.score} из ${result.max_score}`);
-            closeTestRunner();
-            loadTests();
+            const r = await res.json();
+            alert(`Результат: ${r.score} из ${r.max_score}`);
+            closeTestRunner(); loadTests();
         }
 
-        // --- ОБРАЩЕНИЯ (ВОПРОС-ОТВЕТ) ---
+        // --- ОБРАЩЕНИЯ, АУДИТ (EXCEL) И ДЕКАНАТ ---
+        function fillCertificateTemplate() {
+            document.getElementById("ticket-recipient").value = "deanery";
+            document.getElementById("ticket-subject").value = "Заказ справки об обучении";
+            document.getElementById("ticket-question").value = `Прошу подготовить справку об обучении (студент: ${currentUser.full_name}, группа: ${currentUser.group_name || '—'}).`;
+        }
+
         async function createTicket(e) {
             e.preventDefault();
             const recVal = document.getElementById("ticket-recipient").value;
-            const payload = {
-                recipient_type: recVal === "deanery" ? "deanery" : "teacher",
-                recipient_id: recVal === "deanery" ? null : parseInt(recVal),
-                subject: document.getElementById("ticket-subject").value.trim(),
-                question: document.getElementById("ticket-question").value.trim()
-            };
-            const token = localStorage.getItem("portal_token");
             await fetch(`${API_URL}/tickets`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify(payload)
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("portal_token")}` },
+                body: JSON.stringify({ recipient_type: recVal === "deanery" ? "deanery" : "teacher", recipient_id: recVal === "deanery" ? null : parseInt(recVal), subject: document.getElementById("ticket-subject").value.trim(), question: document.getElementById("ticket-question").value.trim() })
             });
-            document.getElementById("ticket-subject").value = "";
-            document.getElementById("ticket-question").value = "";
+            document.getElementById("ticket-subject").value = ""; document.getElementById("ticket-question").value = "";
             loadTickets();
         }
 
         async function loadTickets() {
-            const token = localStorage.getItem("portal_token");
-            const res = await fetch(`${API_URL}/tickets`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            const res = await fetch(`${API_URL}/tickets`, { headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` } });
             const tickets = await res.json();
-
             document.getElementById("tickets-list").innerHTML = tickets.length ? tickets.map(tk => `
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-2">
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="font-semibold text-slate-500">
-                            От: ${tk.student_name} (${tk.group_name || 'без группы'}) → Кому: ${tk.recipient_type === 'deanery' ? 'Деканат' : tk.recipient_name}
-                        </span>
-                        <span class="px-2 py-0.5 rounded-lg font-semibold ${tk.status === 'answered' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">
-                            ${tk.status === 'answered' ? 'Отвечено' : 'Новый'}
-                        </span>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-sm">${tk.subject}</h4>
-                    <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl">${tk.question}</p>
-                    ${tk.answer
-                        ? `<div class="text-sm text-indigo-900 bg-indigo-50 p-3 rounded-xl border border-indigo-100"><b>Ответ:</b> ${tk.answer}</div>`
-                        : (currentUser.role !== 'student' ? `
-                            <div class="flex gap-2 pt-1">
-                                <input type="text" id="ans-input-${tk.id}" placeholder="Напишите ответ студенту..." class="flex-1 px-3 py-1.5 border border-slate-300 rounded-xl text-sm">
-                                <button onclick="sendTicketAnswer(${tk.id})" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl">Ответить</button>
-                            </div>
-                        ` : '')
-                    }
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2">
+                    <div class="flex justify-between text-xs"><span class="text-slate-500">${tk.student_name} (${tk.group_name||'—'}) → ${tk.recipient_type==='deanery'?'Деканат':tk.recipient_name}</span><span class="px-2 py-0.5 rounded-lg font-semibold ${tk.status==='answered'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">${tk.status==='answered'?'Отвечено':'Новый'}</span></div>
+                    <h4 class="font-bold text-sm">${tk.subject}</h4>
+                    <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl">${tk.question}</p>
+                    ${tk.answer ? `<div class="text-xs bg-indigo-50 text-indigo-900 p-3 rounded-xl"><b>Ответ:</b> ${tk.answer}</div>` : (currentUser.role !== 'student' ? `<div class="flex gap-2"><input type="text" id="ans-input-${tk.id}" placeholder="Ответ..." class="flex-1 px-3 py-1.5 border rounded-xl text-xs"><button onclick="sendTicketAnswer(${tk.id})" class="px-3.5 py-1.5 bg-accent text-xs font-semibold rounded-xl">Ответить</button></div>` : '')}
                 </div>
             `).join('') : '<div class="text-sm text-slate-400">Обращений пока нет.</div>';
         }
 
-        async function sendTicketAnswer(ticketId) {
-            const answer = document.getElementById(`ans-input-${ticketId}`).value.trim();
+        async function sendTicketAnswer(id) {
+            const answer = document.getElementById(`ans-input-${id}`).value.trim();
             if (!answer) return;
-            const token = localStorage.getItem("portal_token");
-            await fetch(`${API_URL}/tickets/${ticketId}/answer`, {
+            await fetch(`${API_URL}/tickets/${id}/answer`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("portal_token")}`
+                },
                 body: JSON.stringify({ answer })
             });
             loadTickets();
         }
 
+        async function loadAuditLogs() {
+            const res = await fetch(`${API_URL}/audit`, {
+                headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` }
+            });
+            if (!res.ok) return;
+            cachedAuditLogs = await res.json();
+            document.getElementById("audit-tbody").innerHTML = cachedAuditLogs.map(l => `
+                <tr>
+                    <td class="py-2 px-2 font-mono text-slate-400">${l.time}</td>
+                    <td class="py-2 px-2 font-semibold">${l.actor_name}</td>
+                    <td class="py-2 px-2 text-accent font-medium">${l.action}</td>
+                    <td class="py-2 px-2">${l.details}</td>
+                </tr>
+            `).join('');
+        }
+
+        function exportAuditToExcel() {
+            if (!cachedAuditLogs.length) return alert("Журнал пока пуст");
+            const rows = cachedAuditLogs.map(l => ({
+                "Время": l.time,
+                "Инициатор": l.actor_name,
+                "Событие": l.action,
+                "Детали": l.details
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws["!cols"] = [{ wch: 20 }, { wch: 28 }, { wch: 25 }, { wch: 45 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Журнал аудита");
+            XLSX.writeFile(wb, `audit_logs_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        }
+
         async function loadUsersList() {
-            const token = localStorage.getItem("portal_token");
             const res = await fetch(`${API_URL}/users`, {
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: { "Authorization": `Bearer ${localStorage.getItem("portal_token")}` }
             });
             if (!res.ok) return;
             const data = await res.json();
-
             cachedUsers = data.users;
             cachedGroups = data.groups;
-
-            // Перестраиваем префиксное дерево при загрузке пользователей
             userTrie = new PrefixTree();
-            cachedUsers.forEach(u => userTrie.insert(u));
-
+            cachedUsers.forEach(u => userTrie.insert(u, `${u.full_name} ${u.email}`));
             renderUsersTable(cachedUsers);
         }
 
-        function handleUserSearch(query) {
+        function handleUserSearch(q) {
             const box = document.getElementById("search-suggestions");
-            if (!query.trim()) {
+            if (!q.trim()) {
                 box.classList.add("hidden");
-                renderUsersTable(cachedUsers);
-                return;
+                return renderUsersTable(cachedUsers);
             }
-
-            const matches = userTrie.searchTop5(query);
-            if (!matches.length) {
-                box.innerHTML = `<div class="px-4 py-2.5 text-xs text-slate-400">Совпадений не найдено</div>`;
-                box.classList.remove("hidden");
-                renderUsersTable([]);
-                return;
-            }
-
-            // Выводим топ-5 подсказок в выпадающем списке
-            box.innerHTML = matches.map(u => `
-                <button type="button" onclick="selectSearchUser(${u.id}, '${u.full_name.replace(/'/g, "\\'")}')" class="w-full text-left px-4 py-2.5 hover:bg-indigo-50 flex items-center justify-between border-b last:border-0 border-slate-100 transition">
-                    <div>
-                        <div class="text-sm font-semibold text-slate-900">${u.full_name}</div>
-                        <div class="text-xs text-slate-400">${u.email}</div>
-                    </div>
-                    <span class="text-xs font-medium text-indigo-600">${ROLE_NAMES[u.role]}</span>
+            const matches = userTrie.searchByPrefix(q, 5);
+            box.innerHTML = matches.length ? matches.map(u => `
+                <button type="button" onclick="selectSearchUser(${u.id}, '${u.full_name.replace(/'/g, "\\'")}')"
+                        class="w-full text-left px-4 py-2 hover:bg-slate-50 flex justify-between border-b text-xs">
+                    <span><b>${u.full_name}</b> (${u.email})</span>
+                    <span class="text-accent">${ROLE_NAMES[u.role]}</span>
                 </button>
-            `).join('');
+            `).join('') : `<div class="px-4 py-2 text-xs text-slate-400">Ничего не найдено</div>`;
             box.classList.remove("hidden");
             renderUsersTable(matches);
         }
 
-        function selectSearchUser(userId, fullName) {
-            document.getElementById("user-search-input").value = fullName;
+        function selectSearchUser(id, name) {
+            document.getElementById("user-search-input").value = name;
             document.getElementById("search-suggestions").classList.add("hidden");
-            const selected = cachedUsers.filter(u => u.id === userId);
-            renderUsersTable(selected);
+            renderUsersTable(cachedUsers.filter(u => u.id === id));
         }
 
-        function renderUsersTable(usersList) {
-            const tbody = document.getElementById("users-table-body");
-            tbody.innerHTML = usersList.map(u => {
+        function renderUsersTable(list) {
+            document.getElementById("users-table-body").innerHTML = list.map(u => {
                 const isProtected = (u.id === currentUser.id) || (currentUser.role === 'deanery' && ['admin', 'deanery'].includes(u.role));
-                const avatarUrl = resolveAvatar(u);
-
-
                 if (isProtected) {
                     return `
                         <tr class="bg-slate-50/70">
-                            <td class="py-3 px-2 font-mono text-slate-400">#${u.id}</td>
-                            <td class="py-3 px-2 font-medium text-slate-700">
-                                <div class="flex items-center gap-2.5">
-                                    <img src="${avatarUrl}" alt="Аватар" class="w-8 h-8 rounded-full object-cover border border-slate-200">
-                                    <span>${u.full_name}</span>
-                                </div>
+                            <td class="py-2.5 px-2 font-mono text-slate-400">#${u.id}</td>
+                            <td class="py-2.5 px-2 font-medium flex items-center gap-2">
+                                <img src="${resolveAvatar(u)}" class="w-7 h-7 rounded-lg object-cover">${u.full_name}
                             </td>
-                            <td class="py-3 px-2 text-slate-400">${u.email}</td>
-                            <td class="py-3 px-2">
-                                <span class="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">${ROLE_NAMES[u.role]}</span>
-                            </td>
-                            <td class="py-3 px-2 text-slate-400 text-xs">${u.group_name || '—'}</td>
-                            <td class="py-3 px-2 text-xs text-slate-400 italic">Защищено</td>
-                        </tr>
-                    `;
+                            <td class="py-2.5 px-2 text-slate-400">${u.email}</td>
+                            <td class="py-2.5 px-2"><span class="px-2 py-0.5 bg-slate-200 rounded text-xs">${ROLE_NAMES[u.role]}</span></td>
+                            <td class="py-2.5 px-2">${u.group_name || '—'}</td>
+                            <td class="py-2.5 px-2 text-slate-400 italic">Защищено</td>
+                        </tr>`;
                 }
-
                 return `
                     <tr>
-                        <td class="py-3 px-2 font-mono text-slate-500">#${u.id}</td>
-                        <td class="py-3 px-2 font-medium">
-                            <div class="flex items-center gap-2.5">
-                                <img src="${avatarUrl}" alt="Аватар" class="w-8 h-8 rounded-full object-cover border border-slate-200">
-                                <span>${u.full_name}</span>
-                            </div>
+                        <td class="py-2.5 px-2 font-mono text-slate-500">#${u.id}</td>
+                        <td class="py-2.5 px-2 font-medium flex items-center gap-2">
+                            <img src="${resolveAvatar(u)}" class="w-7 h-7 rounded-lg object-cover">${u.full_name}
                         </td>
-                        <td class="py-3 px-2 text-slate-500">${u.email}</td>
-                        <td class="py-3 px-2">
-                            <select id="role-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                        <td class="py-2.5 px-2 text-slate-500">${u.email}</td>
+                        <td class="py-2.5 px-2">
+                            <select id="role-${u.id}" class="border rounded-lg px-2 py-1 text-xs">
                                 <option value="guest" ${u.role === 'guest' ? 'selected' : ''}>Гость</option>
                                 <option value="student" ${u.role === 'student' ? 'selected' : ''}>Ученик</option>
                                 <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>Учитель</option>
@@ -930,49 +1599,33 @@
                                 ${currentUser.role === 'admin' ? `<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Админ</option>` : ''}
                             </select>
                         </td>
-                        <td class="py-3 px-2">
-                            <select id="group-${u.id}" class="border border-slate-300 rounded-lg px-2 py-1 text-xs">
+                        <td class="py-2.5 px-2">
+                            <select id="group-${u.id}" class="border rounded-lg px-2 py-1 text-xs">
                                 <option value="">Без группы</option>
                                 ${cachedGroups.map(g => `<option value="${g.id}" ${u.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
                             </select>
                         </td>
-                        <td class="py-3 px-2 flex items-center gap-2">
-                            <button onclick="saveUserRole(${u.id})" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold">Сохранить</button>
-                            <button onclick="messageUserFromDeanery(${u.id}, '${u.full_name.replace(/'/g, "\\'")}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">Написать</button>
+                        <td class="py-2.5 px-2">
+                            <button onclick="saveUserRole(${u.id})" class="px-3 py-1 bg-accent rounded-lg text-xs font-semibold">Сохранить</button>
                         </td>
-
-                    </tr>
-                `;
+                    </tr>`;
             }).join('');
-        }
-        
-        function messageUserFromDeanery(userId, fullName) {
-            openSection("tickets");
-            const sel = document.getElementById("ticket-recipient");
-            if (!Array.from(sel.options).some(o => o.value == userId)) {
-                const opt = new Option(`Получатель: ${fullName}`, userId);
-                sel.add(opt);
-            }
-            sel.value = userId;
-            document.getElementById("ticket-subject").focus();
         }
 
         async function saveUserRole(userId) {
-            const token = localStorage.getItem("portal_token");
             const role = document.getElementById(`role-${userId}`).value;
-            const groupVal = document.getElementById(`group-${userId}`).value;
-            const group_id = groupVal ? parseInt(groupVal) : null;
+            const gVal = document.getElementById(`group-${userId}`).value;
             const res = await fetch(`${API_URL}/users/role`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify({ user_id: userId, role, group_id })
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem("portal_token")}`
+                },
+                body: JSON.stringify({ user_id: userId, role, group_id: gVal ? parseInt(gVal) : null })
             });
             if (res.ok) {
-                alert("Роль и группа обновлены!");
+                alert("Сохранено!");
                 loadUsersList();
-            } else {
-                const err = await res.json();
-                alert(err.detail || "Ошибка сохранения");
             }
         }
 
@@ -981,6 +1634,7 @@
             location.reload();
         }
 
+        if (window.lucide) lucide.createIcons();
         checkStatus();
     </script>
 </body>

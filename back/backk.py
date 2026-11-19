@@ -11,10 +11,7 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from pydantic import BaseModel
 
-
-# ==============================================================================
-# 1. КОНФИГУРАЦИЯ И ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
-# ==============================================================================
+# 1. config and init
 
 DB_CONFIG = "dbname=my_local_db user=postgres password=Sakuromoti3! host=127.0.0.1 port=5432"
 
@@ -34,10 +31,7 @@ app.add_middleware(
 
 pool = AsyncConnectionPool(conninfo=DB_CONFIG, open=False)
 
-
-# ==============================================================================
-# 2. МОДЕЛИ ДАННЫХ (PYDANTIC SCHEMAS)
-# ==============================================================================
+# 2. pydantic
 
 class RegisterSchema(BaseModel):
     full_name: str
@@ -56,17 +50,11 @@ class RoleUpdateSchema(BaseModel):
     role: str
     group_id: Optional[int] = None
 
-
 class NewsCreateSchema(BaseModel):
     title: str
     content: str
     tag: str = "Общее"
     image_url: Optional[str] = None
-
-class QuestionSchema(BaseModel):
-    text: str
-    options: List[str]
-    correct_index: int
 
 class ScheduleSchema(BaseModel):
     group_id: int
@@ -74,16 +62,58 @@ class ScheduleSchema(BaseModel):
     time_start: str
     time_end: str
     subject: str
-    room: int
-    corp: int
+    room: str
+    corp: str
     teacher_name: str
     lesson_type: str
-    
+    lesson_date: Optional[str] = None
+
+class TicketMessageSchema(BaseModel):
+    text: str
+
+class AttendanceMarkSchema(BaseModel):
+    lesson_id: int
+    student_id: int
+    status: str  # 'present', 'absent', 'excused'
+
+class LessonToggleSchema(BaseModel):
+    cancel: bool = False
+    new_type: Optional[str] = None
+
+class ScheduleCopySchema(BaseModel):
+    source_group_id: int
+    target_group_id: int
+    source_day: str
+    target_day: Optional[str] = None
+
+class ExamCreateSchema(BaseModel):
+    group_id: int
+    course: int
+    academic_year: str
+    subject: str
+    exam_date: str
+    room: str
+    doc_name: Optional[str] = None
+    doc_data: Optional[str] = None
+
+class FlashcardItemSchema(BaseModel):
+    front: str
+    back: str
+
+class DeckCreateSchema(BaseModel):
+    title: str
+    tags: str
+    cards: List[FlashcardItemSchema]
+
+class QuestionSchema(BaseModel):
+    text: str
+    options: List[str]
+    correct_index: int
+
 class TestCreateSchema(BaseModel):
     title: str
     group_id: int
     questions: List[QuestionSchema]
-
 
 class TestSubmitSchema(BaseModel):
     answers: List[int]
@@ -94,17 +124,12 @@ class TicketCreateSchema(BaseModel):
     subject: str
     question: str
 
-
 class TicketAnswerSchema(BaseModel):
     answer: str
 
-
-# ==============================================================================
-# 3. БАЗА ДАННЫХ И НАЧАЛЬНОЕ НАПОЛНЕНИЕ
-# ==============================================================================
+# 3. db (you can translate it from code to pgAdmin if preferable)
 
 async def create_tables(cur) -> None:
-    """Создание всех необходимых таблиц в PostgreSQL."""
     await cur.execute("""
         CREATE TABLE IF NOT EXISTS groups (
             id SERIAL PRIMARY KEY,
@@ -120,7 +145,8 @@ async def create_tables(cur) -> None:
             password_hash TEXT NOT NULL,
             role VARCHAR(20) DEFAULT 'guest',
             group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
-            api_token TEXT
+            api_token TEXT,
+            avatar_url TEXT
         );
     """)
 
@@ -131,6 +157,7 @@ async def create_tables(cur) -> None:
             content TEXT NOT NULL,
             tag VARCHAR(50) DEFAULT 'Общее',
             author_name TEXT,
+            image_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
@@ -143,10 +170,38 @@ async def create_tables(cur) -> None:
             time_start TIMESTAMP NOT NULL,
             time_end TIMESTAMP NOT NULL,
             subject TEXT NOT NULL,
-            room VARCHAR(3) NOT NULL,
-            corp VARCHAR(2) NOT NULL,
+            room VARCHAR(20) NOT NULL,
+            corp VARCHAR(10) NOT NULL,
             teacher_name TEXT NOT NULL,
-            lesson_type VARCHAR(30) DEFAULT 'Лекция'
+            lesson_type VARCHAR(30) DEFAULT 'Лекция',
+            is_changed BOOLEAN DEFAULT FALSE,
+            lesson_date DATE
+        );
+    """)
+
+    await cur.execute("""
+        CREATE TABLE IF NOT EXISTS exam_sessions (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+            course INTEGER NOT NULL,
+            academic_year VARCHAR(20) NOT NULL,
+            subject TEXT NOT NULL,
+            exam_date DATE NOT NULL,
+            room VARCHAR(50) NOT NULL,
+            teacher_name TEXT NOT NULL,
+            doc_name TEXT,
+            doc_data TEXT
+        );
+    """)
+
+    await cur.execute("""
+        CREATE TABLE IF NOT EXISTS flashcard_decks (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            tags TEXT NOT NULL,
+            author_name TEXT NOT NULL,
+            author_role VARCHAR(20) NOT NULL,
+            cards JSONB NOT NULL
         );
     """)
 
@@ -181,82 +236,106 @@ async def create_tables(cur) -> None:
             question TEXT NOT NULL,
             answer TEXT,
             status VARCHAR(20) DEFAULT 'new',
+            created_by_staff BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
-    await cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;")
-    await cur.execute("ALTER TABLE news ADD COLUMN IF NOT EXISTS image_url TEXT;")
-    await cur.execute("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS created_by_staff BOOLEAN DEFAULT FALSE;")
 
+    await cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id SERIAL PRIMARY KEY,
+            actor_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            details TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    
+    await cur.execute("""
+        CREATE TABLE IF NOT EXISTS attendance (
+            id SERIAL PRIMARY KEY,
+            lesson_id INTEGER REFERENCES schedule(id) ON DELETE CASCADE,
+            student_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status VARCHAR(20) NOT NULL DEFAULT 'present',
+            updated_by TEXT,
+            UNIQUE(lesson_id, student_id)
+        );
+    """)
 
+    await cur.execute("""
+        CREATE TABLE IF NOT EXISTS ticket_messages (
+            id SERIAL PRIMARY KEY,
+            ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+            sender_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            sender_name TEXT NOT NULL,
+            sender_role VARCHAR(20) NOT NULL,
+            text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+async def write_audit(cur, actor_name: str, action: str, details: str) -> None:
+    """Запись события в журнал безопасности."""
+    await cur.execute(
+        "INSERT INTO audit_logs (actor_name, action, details) VALUES (%s, %s, %s)",
+        (actor_name, action, details)
+    )
 
 async def seed_demo_data(cur) -> None:
-    """Заполнение базовых групп, новостей и расписания при первом запуске."""
+    """Заполнение стартовых групп, админа, новостей, расписания и карточек."""
     for grp in ["ИВТ-101", "ЭК-202", "ПИ-301"]:
-        await cur.execute(
-            "INSERT INTO groups (name) VALUES (%s) ON CONFLICT DO NOTHING",
-            (grp,)
-        )
+        await cur.execute("INSERT INTO groups (name) VALUES (%s) ON CONFLICT DO NOTHING", (grp,))
 
-    await cur.execute("SELECT COUNT(*) as cnt FROM news")
-    if (await cur.fetchone())["cnt"] == 0:
-        await cur.execute("""
-            INSERT INTO news (title, content, tag, author_name) VALUES
-            (
-                'Старт университетского хакатона 2026',
-                'Приглашаем команды всех факультетов принять участие в разработке цифровых сервисов для нашего вуза.',
-                'Мероприятия',
-                'Деканат'
-            ),
-            (
-                'Изменения в графике работы библиотеки',
-                'С понедельника читальный зал работает до 21:00 по студенческому билету.',
-                'Общее',
-                'Администрация'
-            )
-        """)
+    await cur.execute("SELECT id FROM users WHERE email = 'admin@uni.ru'")
+    if not await cur.fetchone():
+        pw_hash = bcrypt.hashpw("admin123".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        await cur.execute(
+            "INSERT INTO users (full_name, email, password_hash, role, api_token) VALUES (%s, %s, %s, 'admin', %s)",
+            ("Главный Администратор", "admin@uni.ru", pw_hash, secrets.token_hex(32))
+        )
 
     await cur.execute("SELECT COUNT(*) as cnt FROM schedule")
     if (await cur.fetchone())["cnt"] == 0:
         await cur.execute("SELECT id FROM groups WHERE name = 'ИВТ-101'")
-        group_row = await cur.fetchone()
-        if group_row:
-            gid = group_row["id"]
+        row = await cur.fetchone()
+        if row:
+            gid = row["id"]
             await cur.execute("""
-                INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type) VALUES
-                (%s, 'Понедельник', '2026-11-09 09:00:00','2026-11-09 10:30:00', 'Алгоритмы и структуры данных', '304', '1', 'Смирнов А.В.', 'Лекция'),
-                (%s, 'Понедельник', '2026-11-09 10:45:00','2026-11-09 12:15:00', 'Базы данных (PostgreSQL)', '12', '1', 'Козлова Е.Н.', 'Практика'),
-                (%s, 'Вторник', '2026-11-10 09:00:00','2026-11-10 10:30:00', 'Веб-разработка и API', '5', '10', 'Смирнов А.В.', 'Лабораторная'),
-                (%s, 'Среда', '2026-11-11 09:00:00','2026-11-11 10:30:00', 'Информационная безопасность', '410', '5', 'Волков Д.С.', 'Лекция')
-            """, (gid, gid, gid, gid))
+                INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type, lesson_date) VALUES
+                (%s, 'Понедельник', '2026-11-09 09:00:00', '2026-11-09 10:30:00', 'Алгоритмы и структуры данных', '304', '1', 'Смирнов А.В.', 'Лекция', '2026-11-09'),
+                (%s, 'Вторник', '2026-11-10 10:45:00', '2026-11-10 12:15:00', 'Базы данных (PostgreSQL)', '12', '1', 'Козлова Е.Н.', 'Практика', '2026-11-10')
+            """, (gid, gid))
 
+    await cur.execute("SELECT COUNT(*) as cnt FROM flashcard_decks")
+    if (await cur.fetchone())["cnt"] == 0:
+        cards = json.dumps([
+            {"front": "Что такое PRIMARY KEY?", "back": "Уникальный ключ строки таблицы в SQL."},
+            {"front": "Сложность бинарного поиска?", "back": "O(log n)"}
+        ], ensure_ascii=False)
+        await cur.execute(
+            "INSERT INTO flashcard_decks (title, tags, author_name, author_role, cards) VALUES (%s, %s, %s, 'teacher', %s::jsonb)",
+            ("База к сессии: Алгоритмы и SQL", "сессия ивт 2026 1 курс sql", "Смирнов А.В.", cards)
+        )
 
 async def init_db() -> None:
-    """Главная функция инициализации базы данных."""
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await create_tables(cur)
             await seed_demo_data(cur)
         await conn.commit()
 
-
 @app.on_event("startup")
 async def on_startup() -> None:
     await pool.open()
     await init_db()
 
-
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     await pool.close()
 
-
-# ==============================================================================
-# 4. ЗАВИСИМОСТИ И БЕЗОПАСНОСТЬ
-# ==============================================================================
+# 4. security +
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
-    """Получение текущего пользователя по Bearer-токену из заголовка."""
     if not authorization:
         raise HTTPException(status_code=401, detail="Не передан токен авторизации")
 
@@ -277,14 +356,10 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
 
 
 def require_roles(user: dict, allowed_roles: List[str], error_msg: str = "Недостаточно прав") -> None:
-    """Проверка соответствия роли пользователя разрешенному списку."""
     if user["role"] not in allowed_roles:
         raise HTTPException(status_code=403, detail=error_msg)
 
-
-# ==============================================================================
-# 5. ЭНДПОИНТЫ АВТОРИЗАЦИИ И ПРОФИЛЯ
-# ==============================================================================
+# 5. logIn - endPoints
 
 @app.post("/api/register")
 async def register(data: RegisterSchema):
@@ -305,6 +380,7 @@ async def register(data: RegisterSchema):
                     RETURNING id
                 """, (data.full_name, data.email, pw_hash, token))
                 new_user = await cur.fetchone()
+                await write_audit(cur, data.full_name, "Регистрация", f"Создана заявка #{new_user['id']} ({data.email})")
             await conn.commit()
     except psycopg.Error as exc:
         raise HTTPException(status_code=500, detail=f"Ошибка базы данных: {exc}")
@@ -334,15 +410,11 @@ async def login(data: LoginSchema):
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
 
-
-# ==============================================================================
-# 6. УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ, РОЛЯМИ И ПРЕПОДАВАТЕЛЯМИ
-# ==============================================================================
+# 6. role priorities
 
 @app.get("/api/users")
 async def list_users(current_user: dict = Depends(get_current_user)):
     require_roles(current_user, ["deanery", "admin"])
-
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("""
@@ -352,31 +424,29 @@ async def list_users(current_user: dict = Depends(get_current_user)):
                 ORDER BY u.id DESC
             """)
             users = await cur.fetchall()
-
             await cur.execute("SELECT * FROM groups ORDER BY name")
             groups = await cur.fetchall()
-
     return {"users": users, "groups": groups}
-
 
 @app.post("/api/users/role")
 async def assign_role(data: RoleUpdateSchema, current_user: dict = Depends(get_current_user)):
     require_roles(current_user, ["deanery", "admin"])
-
     if data.user_id == current_user["id"]:
         raise HTTPException(status_code=400, detail="Нельзя изменить роль самому себе")
-
     if current_user["role"] == "deanery" and data.role in ["deanery", "admin"]:
         raise HTTPException(status_code=403, detail="Деканат может назначать только Учеников и Учителей")
 
     async with pool.connection() as conn:
-        async with conn.cursor() as cur:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT full_name FROM users WHERE id = %s", (data.user_id,))
+            target = await cur.fetchone()
             await cur.execute(
                 "UPDATE users SET role = %s, group_id = %s WHERE id = %s",
                 (data.role, data.group_id, data.user_id)
             )
+            target_name = target["full_name"] if target else f"ID {data.user_id}"
+            await write_audit(cur, current_user["full_name"], "Смена роли", f"{target_name} -> роль '{data.role}'")
         await conn.commit()
-
     return {"status": "success"}
 
 
@@ -386,31 +456,22 @@ async def list_teachers(current_user: dict = Depends(get_current_user)):
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute("SELECT id, full_name, email, avatar_url FROM users WHERE role = 'teacher' ORDER BY full_name")
             teachers = await cur.fetchall()
-
             await cur.execute("SELECT * FROM groups ORDER BY name")
             groups = await cur.fetchall()
-
     return {"teachers": teachers, "groups": groups}
+
 
 @app.post("/api/users/avatar")
 async def update_avatar(data: AvatarUpdateSchema, current_user: dict = Depends(get_current_user)):
-    """Сохранение сжатого аватара (Base64 или локальный путь) текущего пользователя."""
     if len(data.avatar_url) > 500_000:
         raise HTTPException(status_code=400, detail="Файл изображения слишком большой")
-
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE users SET avatar_url = %s WHERE id = %s",
-                (data.avatar_url, current_user["id"])
-            )
+            await cur.execute("UPDATE users SET avatar_url = %s WHERE id = %s", (data.avatar_url, current_user["id"]))
         await conn.commit()
-
     return {"status": "success", "avatar_url": data.avatar_url}
 
-# ==============================================================================
-# 7. НОВОСТИ И РАСПИСАНИЕ ЗАНЯТИЙ
-# ==============================================================================
+# 7. news + timemanaging
 
 @app.get("/api/news")
 async def get_news(current_user: dict = Depends(get_current_user)):
@@ -419,8 +480,7 @@ async def get_news(current_user: dict = Depends(get_current_user)):
             await cur.execute("""
                 SELECT id, title, content, tag, author_name, image_url,
                        to_char(created_at, 'DD.MM.YYYY HH24:MI') as date
-                FROM news
-                ORDER BY id DESC
+                FROM news ORDER BY id DESC
             """)
             return await cur.fetchall()
 
@@ -428,15 +488,14 @@ async def get_news(current_user: dict = Depends(get_current_user)):
 @app.post("/api/news")
 async def create_news(data: NewsCreateSchema, current_user: dict = Depends(get_current_user)):
     require_roles(current_user, ["deanery", "admin"], "Публиковать новости может только Деканат или Админ")
-
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
                 "INSERT INTO news (title, content, tag, author_name, image_url) VALUES (%s, %s, %s, %s, %s)",
                 (data.title, data.content, data.tag, current_user["full_name"], data.image_url)
             )
+            await write_audit(cur, current_user["full_name"], "Публикация новости", data.title)
         await conn.commit()
-
     return {"status": "success"}
 
 
@@ -449,23 +508,176 @@ async def get_schedule(group_id: Optional[int] = None, current_user: dict = Depe
             groups = await cur.fetchall()
             if not target_group and groups:
                 target_group = groups[0]["id"]
-            await cur.execute("SELECT * FROM schedule WHERE group_id = %s ORDER BY id", (target_group,))
+            await cur.execute("""
+                SELECT id, group_id, day_of_week,
+                       to_char(time_start, 'HH24:MI') as start_fmt,
+                       to_char(time_end, 'HH24:MI') as end_fmt,
+                       time_start::text as time_start_raw,
+                       time_end::text as time_end_raw,
+                       subject, room, corp, teacher_name, lesson_type,
+                       COALESCE(is_changed, FALSE) as is_changed,
+                       lesson_date::text as lesson_date
+                FROM schedule
+                WHERE group_id = %s
+                ORDER BY time_start ASC
+            """, (target_group,))
             lessons = await cur.fetchall()
+    return {"groups": groups, "selected_group": target_group, "lessons": lessons}
 
-    return {
-        "groups": groups,
-        "selected_group": target_group,
-        "lessons": lessons
-    }
+
 @app.post("/api/schedule")
-async def change_schedule(schedule_changes: ScheduleSchema, current_user: dict = Depends(get_current_user)):
-    if current_user.get("group_id") != "Студент":
-        print("unbder the construction")
-        
+async def add_schedule_lesson(data: ScheduleSchema, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["deanery", "admin"], "Изменять расписание может только Деканат или Админ")
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type, is_changed, lesson_date)
+                VALUES (%s, %s, %s::timestamp, %s::timestamp, %s, %s, %s, %s, %s, TRUE, %s::date)
+            """, (
+                data.group_id, data.day_of_week, data.time_start, data.time_end,
+                data.subject, str(data.room), str(data.corp), data.teacher_name,
+                data.lesson_type, data.lesson_date
+            ))
+            await write_audit(cur, current_user["full_name"], "Добавление пары", f"{data.subject} ({data.day_of_week})")
+        await conn.commit()
+    return {"status": "success"}
 
-# ==============================================================================
-# 8. МОДУЛЬ ТЕСТИРОВАНИЯ
-# ==============================================================================
+
+@app.post("/api/schedule/{lesson_id}/toggle-change")
+async def toggle_lesson_change(lesson_id: int, data: LessonToggleSchema, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["deanery", "admin"])
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT subject, lesson_type, is_changed FROM schedule WHERE id = %s", (lesson_id,))
+            lesson = await cur.fetchone()
+            if not lesson:
+                raise HTTPException(status_code=404, detail="Пара не найдена")
+
+            if data.cancel:
+                new_type = "Отменена"
+                new_changed = True
+            else:
+                new_type = data.new_type or lesson["lesson_type"]
+                new_changed = not lesson["is_changed"]
+
+            await cur.execute(
+                "UPDATE schedule SET is_changed = %s, lesson_type = %s WHERE id = %s",
+                (new_changed, new_type, lesson_id)
+            )
+            await write_audit(cur, current_user["full_name"], "Изменение расписания", f"{lesson['subject']} -> {new_type}")
+        await conn.commit()
+    return {"status": "success"}
+
+
+@app.post("/api/schedule/copy")
+async def copy_schedule(data: ScheduleCopySchema, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["deanery", "admin"])
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            if data.source_day == "ALL":
+                await cur.execute("SELECT * FROM schedule WHERE group_id = %s", (data.source_group_id,))
+                rows = await cur.fetchall()
+                for r in rows:
+                    await cur.execute("""
+                        INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type, is_changed, lesson_date)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
+                    """, (
+                        data.target_group_id, r["day_of_week"], r["time_start"], r["time_end"],
+                        r["subject"], r["room"], r["corp"], r["teacher_name"], r["lesson_type"], r["lesson_date"]
+                    ))
+                copied_count = len(rows)
+            else:
+                await cur.execute(
+                    "SELECT * FROM schedule WHERE group_id = %s AND day_of_week = %s",
+                    (data.source_group_id, data.source_day)
+                )
+                rows = await cur.fetchall()
+                target_d = data.target_day or data.source_day
+                for r in rows:
+                    await cur.execute("""
+                        INSERT INTO schedule (group_id, day_of_week, time_start, time_end, subject, room, corp, teacher_name, lesson_type, is_changed, lesson_date)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s)
+                    """, (
+                        data.target_group_id, target_d, r["time_start"], r["time_end"],
+                                                r["subject"], r["room"], r["corp"], r["teacher_name"], r["lesson_type"], r["lesson_date"]
+                    ))
+                copied_count = len(rows)
+
+            await write_audit(cur, current_user["full_name"], "Копирование расписания", f"Скопировано пар: {copied_count}")
+        await conn.commit()
+    return {"status": "success", "copied": copied_count}
+
+@app.get("/api/exams")
+async def get_exams(group_id: Optional[int] = None, current_user: dict = Depends(get_current_user)):
+    target_group = group_id or current_user.get("group_id")
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            if target_group:
+                await cur.execute("""
+                    SELECT id, group_id, course, academic_year, subject,
+                           exam_date::text as exam_date, room, teacher_name, doc_name,
+                           (doc_data IS NOT NULL AND doc_data != '') as has_doc
+                    FROM exam_sessions WHERE group_id = %s ORDER BY exam_date ASC
+                """, (target_group,))
+            else:
+                await cur.execute("""
+                    SELECT id, group_id, course, academic_year, subject,
+                           exam_date::text as exam_date, room, teacher_name, doc_name,
+                           (doc_data IS NOT NULL AND doc_data != '') as has_doc
+                    FROM exam_sessions ORDER BY exam_date ASC
+                """)
+            return await cur.fetchall()
+
+@app.get("/api/exams/{exam_id}/doc")
+async def download_exam_doc(exam_id: int, current_user: dict = Depends(get_current_user)):
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT doc_name, doc_data FROM exam_sessions WHERE id = %s", (exam_id,))
+            row = await cur.fetchone()
+    if not row or not row["doc_data"]:
+        raise HTTPException(status_code=404, detail="Документ не прикреплен")
+    return row
+
+@app.post("/api/exams")
+async def create_exam(data: ExamCreateSchema, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["teacher", "deanery", "admin"], "Добавлять экзамены могут только преподаватели и деканат")
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO exam_sessions (group_id, course, academic_year, subject, exam_date, room, teacher_name, doc_name, doc_data)
+                VALUES (%s, %s, %s, %s, %s::date, %s, %s, %s, %s)
+            """, (
+                data.group_id, data.course, data.academic_year, data.subject,
+                data.exam_date, data.room, current_user["full_name"], data.doc_name, data.doc_data
+            ))
+            await write_audit(cur, current_user["full_name"], "Добавлен экзамен", f"{data.subject} ({data.academic_year})")
+        await conn.commit()
+    return {"status": "success"}
+
+# 8. cards and testing
+
+@app.get("/api/decks")
+async def get_decks(current_user: dict = Depends(get_current_user)):
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT * FROM flashcard_decks ORDER BY id DESC")
+            return await cur.fetchall()
+
+
+@app.post("/api/decks")
+async def create_deck(data: DeckCreateSchema, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] == "guest":
+        raise HTTPException(status_code=403, detail="Подтвердите аккаунт для создания карточек")
+    cards_json = json.dumps([c.dict() for c in data.cards], ensure_ascii=False)
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO flashcard_decks (title, tags, author_name, author_role, cards)
+                VALUES (%s, %s, %s, %s, %s::jsonb)
+            """, (data.title, data.tags, current_user["full_name"], current_user["role"], cards_json))
+        await conn.commit()
+    return {"status": "success"}
+
 
 @app.get("/api/tests")
 async def get_tests(current_user: dict = Depends(get_current_user)):
@@ -492,10 +704,27 @@ async def get_tests(current_user: dict = Depends(get_current_user)):
             return await cur.fetchall()
 
 
+@app.get("/api/tests/{test_id}/results")
+async def get_test_results(test_id: int, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["teacher", "deanery", "admin"])
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT title FROM tests WHERE id = %s", (test_id,))
+            test = await cur.fetchone()
+            await cur.execute("""
+                SELECT u.full_name, g.name as group_name, r.score, r.max_score,
+                       to_char(r.submitted_at, 'DD.MM.YYYY HH24:MI') as date
+                FROM test_results r
+                JOIN users u ON r.student_id = u.id
+                LEFT JOIN groups g ON u.group_id = g.id
+                WHERE r.test_id = %s
+                ORDER BY u.full_name ASC
+            """, (test_id,))
+            rows = await cur.fetchall()
+    return {"title": test["title"] if test else "Тест", "results": rows}
 @app.post("/api/tests")
 async def create_test(data: TestCreateSchema, current_user: dict = Depends(get_current_user)):
     require_roles(current_user, ["teacher", "admin"], "Создавать тесты может только Учитель")
-
     questions_json = json.dumps([q.dict() for q in data.questions], ensure_ascii=False)
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
@@ -504,7 +733,6 @@ async def create_test(data: TestCreateSchema, current_user: dict = Depends(get_c
                 (data.title, data.group_id, current_user["full_name"], questions_json)
             )
         await conn.commit()
-
     return {"status": "success"}
 
 
@@ -518,28 +746,21 @@ async def submit_test(test_id: int, data: TestSubmitSchema, current_user: dict =
                 raise HTTPException(status_code=404, detail="Тест не найден")
 
             questions = test["questions"]
-            score = 0
-            for idx, q in enumerate(questions):
-                if idx < len(data.answers) and data.answers[idx] == q["correct_index"]:
-                    score += 1
-
-            max_score = len(questions)
-            await cur.execute(
-                "DELETE FROM test_results WHERE test_id = %s AND student_id = %s",
-                (test_id, current_user["id"])
+            score = sum(
+                1 for idx, q in enumerate(questions)
+                if idx < len(data.answers) and data.answers[idx] == q["correct_index"]
             )
+            max_score = len(questions)
+            await cur.execute("DELETE FROM test_results WHERE test_id = %s AND student_id = %s", (test_id, current_user["id"]))
             await cur.execute(
                 "INSERT INTO test_results (test_id, student_id, score, max_score) VALUES (%s, %s, %s, %s)",
                 (test_id, current_user["id"], score, max_score)
             )
         await conn.commit()
-
     return {"score": score, "max_score": max_score}
 
+# 9. tickets and logs
 
-# ==============================================================================
-# 9. ОБРАЩЕНИЯ И ОБРАТНАЯ СВЯЗЬ (ВОПРОС-ОТВЕТ)
-# ==============================================================================
 @app.get("/api/tickets")
 async def get_tickets(current_user: dict = Depends(get_current_user)):
     base_query = """
@@ -552,17 +773,14 @@ async def get_tickets(current_user: dict = Depends(get_current_user)):
         LEFT JOIN groups g ON s.group_id = g.id
         LEFT JOIN users r ON tk.recipient_id = r.id
     """
-
     async with pool.connection() as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             if current_user["role"] == "student":
-                # Студент видит свои вопросы и входящие сообщения от деканата
                 await cur.execute(
                     base_query + " WHERE tk.student_id = %s OR tk.recipient_id = %s ORDER BY tk.id DESC",
                     (current_user["id"], current_user["id"])
                 )
             elif current_user["role"] == "teacher":
-                # Учитель видит вопросы к нему и исходящие сообщения
                 await cur.execute(
                     base_query + " WHERE tk.recipient_id = %s OR tk.student_id = %s ORDER BY tk.id DESC",
                     (current_user["id"], current_user["id"])
@@ -570,12 +788,9 @@ async def get_tickets(current_user: dict = Depends(get_current_user)):
             else:
                 await cur.execute(base_query + " ORDER BY tk.id DESC")
             return await cur.fetchall()
-
-
 @app.post("/api/tickets")
 async def create_ticket(data: TicketCreateSchema, current_user: dict = Depends(get_current_user)):
     is_staff = current_user["role"] in ["deanery", "admin"]
-
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
             await cur.execute("""
@@ -583,29 +798,122 @@ async def create_ticket(data: TicketCreateSchema, current_user: dict = Depends(g
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (current_user["id"], data.recipient_type, data.recipient_id, data.subject, data.question, is_staff))
         await conn.commit()
-
     return {"status": "success"}
-
 
 @app.post("/api/tickets/{ticket_id}/answer")
 async def answer_ticket(ticket_id: int, data: TicketAnswerSchema, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] == "student": # убрать ифку если нужно что бы студент отвечал на тикет дека
+    if current_user["role"] == "student":
         raise HTTPException(status_code=403, detail="Студент не может закрывать обращения")
-
     async with pool.connection() as conn:
         async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE tickets SET answer = %s, status = 'answered' WHERE id = %s",
-                (data.answer, ticket_id)
-            )
+            await cur.execute("UPDATE tickets SET answer = %s, status = 'answered' WHERE id = %s", (data.answer, ticket_id))
         await conn.commit()
+    return {"status": "success"}
 
+@app.get("/api/audit")
+async def get_audit_logs(current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["admin", "deanery"])
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""
+                SELECT id, actor_name, action, details,
+                       to_char(created_at, 'DD.MM.YYYY HH24:MI:SS') as time
+                FROM audit_logs ORDER BY id DESC LIMIT 50
+            """)
+            return await cur.fetchall()
+
+@app.get("/api/notifications/summary")
+async def get_notifications_summary(current_user: dict = Depends(get_current_user)):
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            guests_count = 0
+            if current_user["role"] in ["deanery", "admin"]:
+                await cur.execute("SELECT COUNT(*) as cnt FROM users WHERE role = 'guest'")
+                guests_count = (await cur.fetchone())["cnt"]
+
+            if current_user["role"] == "student":
+                await cur.execute(
+                    "SELECT COUNT(*) as cnt FROM tickets WHERE student_id = %s AND status = 'answered'",
+                    (current_user["id"],)
+                )
+                tickets_count = (await cur.fetchone())["cnt"]
+            elif current_user["role"] == "teacher":
+                await cur.execute(
+                    "SELECT COUNT(*) as cnt FROM tickets WHERE recipient_id = %s AND status = 'new'",
+                    (current_user["id"],)
+                )
+                tickets_count = (await cur.fetchone())["cnt"]
+            else:
+                await cur.execute("SELECT COUNT(*) as cnt FROM tickets WHERE status = 'new'")
+                tickets_count = (await cur.fetchone())["cnt"]
+
+            await cur.execute("SELECT COUNT(*) as cnt FROM schedule WHERE is_changed = TRUE")
+            changed_lessons = (await cur.fetchone())["cnt"]
+
+    return {
+        "guests_count": guests_count,
+        "tickets_count": tickets_count,
+        "changed_lessons": changed_lessons
+    }
+
+# ==============================================================================
+# 10. ПОСЕЩАЕМОСТЬ И СОСТАВ ГРУППЫ НА ПАРЕ
+# ==============================================================================
+
+@app.get("/api/schedule/{lesson_id}/attendance")
+async def get_lesson_attendance(lesson_id: int, current_user: dict = Depends(get_current_user)):
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("SELECT id, group_id, subject, day_of_week, to_char(time_start, 'HH24:MI') as start_fmt FROM schedule WHERE id = %s", (lesson_id,))
+            lesson = await cur.fetchone()
+            if not lesson:
+                raise HTTPException(status_code=404, detail="Пара не найдена")
+
+            await cur.execute("""
+                SELECT u.id, u.full_name, u.avatar_url, COALESCE(a.status, 'present') as status
+                FROM users u
+                LEFT JOIN attendance a ON a.student_id = u.id AND a.lesson_id = %s
+                WHERE u.group_id = %s AND u.role = 'student'
+                ORDER BY u.full_name ASC
+            """, (lesson_id, lesson["group_id"]))
+            students = await cur.fetchall()
+    return {"lesson": lesson, "students": students}
+
+
+@app.post("/api/attendance")
+async def mark_attendance(data: AttendanceMarkSchema, current_user: dict = Depends(get_current_user)):
+    require_roles(current_user, ["deanery", "teacher", "admin"], "Отмечать посещаемость могут только Деканат и Преподаватели")
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("""
+                INSERT INTO attendance (lesson_id, student_id, status, updated_by)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (lesson_id, student_id)
+                DO UPDATE SET status = EXCLUDED.status, updated_by = EXCLUDED.updated_by
+            """, (data.lesson_id, data.student_id, data.status, current_user["full_name"]))
+            await write_audit(cur, current_user["full_name"], "Посещаемость", f"Пара #{data.lesson_id}, студент #{data.student_id} -> {data.status}")
+        await conn.commit()
     return {"status": "success"}
 
 
-# ==============================================================================
-# 10. ТОЧКА ВХОДА ДЛЯ ЗАПУСКА СЕРВЕРА
-# ==============================================================================
+@app.get("/api/my-absences")
+async def get_my_absences(current_user: dict = Depends(get_current_user)):
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute("""
+                SELECT s.subject,
+                       COUNT(*) FILTER (WHERE a.status = 'absent') as unexcused,
+                       COUNT(*) FILTER (WHERE a.status = 'excused') as excused
+                FROM attendance a
+                JOIN schedule s ON a.lesson_id = s.id
+                WHERE a.student_id = %s AND a.status IN ('absent', 'excused')
+                GROUP BY s.subject
+                ORDER BY unexcused DESC
+            """, (current_user["id"],))
+            by_subject = await cur.fetchall()
+    total_unexcused = sum(r["unexcused"] for r in by_subject)
+    total_excused = sum(r["excused"] for r in by_subject)
+    return {"total_unexcused": total_unexcused, "total_excused": total_excused, "by_subject": by_subject}
 
 if __name__ == "__main__":
     import uvicorn
